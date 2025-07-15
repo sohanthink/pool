@@ -88,7 +88,7 @@ const roleBasedNavItems = {
     ]
 };
 
-export function AppSidebar({ role = "admin", ...props }) {
+export function AppSideBar({ role = "admin", ...props }) {
     const pathname = usePathname();
     const [expandedItems, setExpandedItems] = React.useState({});
     const navItems = roleBasedNavItems[role] || roleBasedNavItems.admin;

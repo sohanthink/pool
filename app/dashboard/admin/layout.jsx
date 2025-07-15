@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { RouteGuard } from "@/components/RouteGuard";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppSideBar } from "@/components/AppSideBar";
 import TopBar from "@/components/TopBar";
 
 export default function DashboardLayout({ children }) {
@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }) {
         <RouteGuard allowedRoles={["admin"]}>
             <SidebarProvider>
                 <div className="flex min-h-screen">
-                    <AppSidebar role="admin" />
+                    <AppSideBar role="admin" />
                     <div className="flex-1 p-5">
                         <SidebarTrigger />
                         <TopBar />
