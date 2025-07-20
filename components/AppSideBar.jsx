@@ -30,30 +30,28 @@ const roleBasedNavItems = {
             icon: <LayoutDashboard className="h-4 w-4" />,
         },
         {
-            title: "Clients",
+            title: "Pool",
             icon: <Users className="h-4 w-4" />,
             items: [
-                { title: "All Clients", url: "/dashboard/admin/user" },
-                { title: "Add Clients", url: "/dashboard/admin/user/create" },
+                { title: "View Pools", url: "/dashboard/admin/pool" },
+                { title: "Add Pool", url: "/dashboard/admin/pool/create" },
             ],
         },
         {
-            title: "Employees",
-            icon: <Users className="h-4 w-4" />,
-            items: [
-                { title: "All Employees", url: "/dashboard/admin/employee" },
-                { title: "Add Employee", url: "/dashboard/admin/employee/create" },
-                { title: "Asign Clients", url: "/dashboard/admin/employee/asignclient" },
-            ],
-        },
-        {
-            title: "Appointments",
+            title: "Bookings",
             icon: <Calendar className="h-4 w-4" />,
             items: [
-                { title: "All Appointments", url: "/dashboard/admin/appointment" },
-                { title: "Create Appointment", url: "/dashboard/admin/appointment/createappointment" },
+                { title: "All Bookings", url: "/dashboard/admin/bookings" },
             ],
-        }
+        },
+        // {
+        //     title: "Appointments",
+        //     icon: <Calendar className="h-4 w-4" />,
+        //     items: [
+        //         { title: "All Appointments", url: "/dashboard/admin/appointment" },
+        //         { title: "Create Appointment", url: "/dashboard/admin/appointment/createappointment" },
+        //     ],
+        // }
     ],
     superadmin: [
         {
