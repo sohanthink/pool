@@ -42,6 +42,7 @@ const roleBasedNavItems = {
             icon: <Calendar className="h-4 w-4" />,
             items: [
                 { title: "All Bookings", url: "/dashboard/admin/bookings" },
+                { title: "Create Booking", url: "/dashboard/admin/bookings/create" },
             ],
         },
         // {

@@ -1,5 +1,5 @@
 "use client"
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,45 +19,50 @@ import {
     Clock,
     Link as LinkIcon,
     Image as ImageIcon,
-
+    AlertCircle
 } from "lucide-react"
-
-// Mock pool data - in real app, fetch by ID
-const poolData = {
-    id: 1,
-    name: "Dream Valley Pool",
-    size: "1256 sqft.",
-    location: "3106 Fleming Way, Richmond, USA",
-    description: "A beautiful outdoor swimming pool with modern amenities, perfect for family gatherings and relaxation. Features include a diving board, shallow end for children, and comfortable seating areas.",
-    price: "$150/hour",
-    capacity: "25 people",
-    status: "Active",
-    owner: {
-        name: "John Smith",
-        phone: "+1 (555) 123-4567",
-        email: "john.smith@email.com"
-    },
-    amenities: ["Diving Board", "Shallow End", "Heating System", "Lighting", "Security Fence", "Parking"],
-    images: [
-        "/pool-image-1.jpg",
-        "/pool-image-2.jpg",
-        "/pool-image-3.jpg",
-        "/pool-image-4.jpg",
-        "/pool-image-5.jpg"
-    ],
-    bookings: [
-        { id: 1, date: "2024-01-15", time: "2:00 PM - 6:00 PM", customer: "Alice Johnson", status: "Confirmed" },
-        { id: 2, date: "2024-01-18", time: "10:00 AM - 2:00 PM", customer: "Bob Wilson", status: "Pending" },
-        { id: 3, date: "2024-01-20", time: "4:00 PM - 8:00 PM", customer: "Carol Davis", status: "Confirmed" }
-    ],
-    rating: 4.8,
-    totalBookings: 45,
-    totalRevenue: "$6,750"
-}
 
 const PoolDetails = ({ params }) => {
     const resolvedParams = React.use(params)
     const poolId = resolvedParams.id
+    const [pool, setPool] = useState(null)
+    const [bookings, setBookings] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        async function fetchData() {
+            setLoading(true)
+            setError('')
+            try {
+                const poolRes = await fetch(`/api/pools/${poolId}`)
+                if (!poolRes.ok) throw new Error('Pool not found')
+                const poolData = await poolRes.json()
+                setPool(poolData)
+
+                // Fetch bookings for this pool
+                const bookingsRes = await fetch(`/api/bookings?poolId=${poolId}`)
+                if (bookingsRes.ok) {
+                    const bookingsData = await bookingsRes.json()
+                    setBookings(bookingsData)
+                } else {
+                    setBookings([])
+                }
+            } catch (err) {
+                setError(err.message || 'Failed to load pool')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchData()
+    }, [poolId])
+
+    if (loading) {
+        return <div className="p-8 text-center text-gray-500">Loading...</div>
+    }
+    if (error || !pool) {
+        return <div className="p-8 text-center text-red-600 flex flex-col items-center"><AlertCircle className="h-8 w-8 mb-2" />{error || 'Pool not found'}</div>
+    }
 
     return (
         <div className="pt-6 space-y-6">
@@ -72,9 +77,9 @@ const PoolDetails = ({ params }) => {
                     </Link>
                     <div className="flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-blue-600" />
-                        <h1 className="text-2xl font-semibold text-gray-800">{poolData.name}</h1>
-                        <Badge variant={poolData.status === 'Active' ? 'default' : 'secondary'}>
-                            {poolData.status}
+                        <h1 className="text-2xl font-semibold text-gray-800">{pool.name}</h1>
+                        <Badge variant={pool.status === 'Active' ? 'default' : 'secondary'}>
+                            {pool.status}
                         </Badge>
                     </div>
                 </div>
@@ -111,12 +116,12 @@ const PoolDetails = ({ params }) => {
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {poolData.images.map((image, index) => (
+                                {(pool.images && pool.images.length > 0 ? pool.images : [null, null, null]).map((image, index) => (
                                     <div key={index} className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg relative">
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="text-white text-center">
                                                 <Building2 className="h-8 w-8 mx-auto mb-1 opacity-80" />
-                                                <p className="text-xs opacity-80">Image {index + 1}</p>
+                                                <p className="text-xs opacity-80">{image ? `Image ${index + 1}` : 'No Image'}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -136,34 +141,34 @@ const PoolDetails = ({ params }) => {
                                     <MapPin className="h-5 w-5 text-gray-500" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Location</p>
-                                        <p className="text-gray-800">{poolData.location}</p>
+                                        <p className="text-gray-800">{pool.location}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Building2 className="h-5 w-5 text-gray-500" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Size</p>
-                                        <p className="text-gray-800">{poolData.size}</p>
+                                        <p className="text-gray-800">{pool.size}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Users className="h-5 w-5 text-gray-500" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Capacity</p>
-                                        <p className="text-gray-800">{poolData.capacity}</p>
+                                        <p className="text-gray-800">{pool.capacity}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <DollarSign className="h-5 w-5 text-gray-500" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Price</p>
-                                        <p className="text-gray-800">{poolData.price}</p>
+                                        <p className="text-gray-800">${pool.price}/hour</p>
                                     </div>
                                 </div>
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-gray-600 mb-2">Description</p>
-                                <p className="text-gray-800">{poolData.description}</p>
+                                <p className="text-gray-800">{pool.description}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -178,11 +183,14 @@ const PoolDetails = ({ params }) => {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                {poolData.bookings.map((booking) => (
-                                    <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                {bookings.length === 0 && (
+                                    <div className="text-gray-500 text-sm">No bookings found for this pool.</div>
+                                )}
+                                {bookings.map((booking) => (
+                                    <div key={booking._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                         <div>
-                                            <p className="font-medium text-gray-800">{booking.customer}</p>
-                                            <p className="text-sm text-gray-600">{booking.date} • {booking.time}</p>
+                                            <p className="font-medium text-gray-800">{booking.customerName}</p>
+                                            <p className="text-sm text-gray-600">{booking.date?.slice(0, 10)} • {booking.time}</p>
                                         </div>
                                         <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
                                             {booking.status}
@@ -206,21 +214,21 @@ const PoolDetails = ({ params }) => {
                                 <Users className="h-5 w-5 text-gray-500" />
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">Name</p>
-                                    <p className="text-gray-800">{poolData.owner.name}</p>
+                                    <p className="text-gray-800">{pool.owner?.name}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <Phone className="h-5 w-5 text-gray-500" />
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">Phone</p>
-                                    <p className="text-gray-800">{poolData.owner.phone}</p>
+                                    <p className="text-gray-800">{pool.owner?.phone}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <Mail className="h-5 w-5 text-gray-500" />
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">Email</p>
-                                    <p className="text-gray-800">{poolData.owner.email}</p>
+                                    <p className="text-gray-800">{pool.owner?.email}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -236,16 +244,16 @@ const PoolDetails = ({ params }) => {
                                 <span className="text-sm text-gray-600">Rating</span>
                                 <div className="flex items-center gap-1">
                                     <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                    <span className="font-medium">{poolData.rating}</span>
+                                    <span className="font-medium">{pool.rating ?? 0}</span>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-600">Total Bookings</span>
-                                <span className="font-medium">{poolData.totalBookings}</span>
+                                <span className="font-medium">{pool.totalBookings ?? 0}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-600">Total Revenue</span>
-                                <span className="font-medium">{poolData.totalRevenue}</span>
+                                <span className="font-medium">${pool.totalRevenue ?? 0}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -257,7 +265,7 @@ const PoolDetails = ({ params }) => {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-wrap gap-2">
-                                {poolData.amenities.map((amenity, index) => (
+                                {(pool.amenities && pool.amenities.length > 0 ? pool.amenities : ['No amenities']).map((amenity, index) => (
                                     <Badge key={index} variant="outline">
                                         {amenity}
                                     </Badge>

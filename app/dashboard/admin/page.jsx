@@ -1,135 +1,120 @@
 "use client"
-
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Users, Calendar, DollarSign, TrendingUp, Activity, Clock, Home } from "lucide-react"
+import { Building2, Calendar, DollarSign, TrendingUp, Activity, Clock, Home, Eye } from "lucide-react"
+import Link from 'next/link'
+
+// Mock current user (replace with real session logic later)
+const currentUser = {
+    role: 'admin',
+    email: 'owner1@example.com', // This should match the pool owner's email in the DB
+    name: 'Pool Owner'
+}
 
 export default function AdminDashboardPage() {
-    // Mock dashboard data
-    const dashboardStats = [
-        {
-            title: "Total Pools",
-            value: "24",
-            iconType: "Building2",
-            color: "text-blue-600",
-            bgColor: "bg-blue-50",
-            change: "+12%",
-            changeType: "positive"
-        },
-        {
-            title: "Active Users",
-            value: "156",
-            iconType: "Users",
-            color: "text-green-600",
-            bgColor: "bg-green-50",
-            change: "+8%",
-            changeType: "positive"
-        },
-        {
-            title: "Appointments",
-            value: "89",
-            iconType: "Calendar",
-            color: "text-purple-600",
-            bgColor: "bg-purple-50",
-            change: "+23%",
-            changeType: "positive"
-        },
-        {
-            title: "Revenue",
-            value: "$12,450",
-            iconType: "DollarSign",
-            color: "text-orange-600",
-            bgColor: "bg-orange-50",
-            change: "+18%",
-            changeType: "positive"
-        },
-        {
-            title: "Pending Requests",
-            value: "7",
-            iconType: "Clock",
-            color: "text-yellow-600",
-            bgColor: "bg-yellow-50",
-            change: "-3%",
-            changeType: "negative"
-        },
-        {
-            title: "Pool Bookings",
-            value: "45",
-            iconType: "Home",
-            color: "text-indigo-600",
-            bgColor: "bg-indigo-50",
-            change: "+15%",
-            changeType: "positive"
-        }
-    ]
+    const [pools, setPools] = useState([])
+    const [bookings, setBookings] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
 
-    const recentActivities = [
-        { id: 1, action: "New pool added", pool: "Dream Valley Pool", time: "2 hours ago" },
-        { id: 2, action: "Booking confirmed", pool: "Sunset Pool", time: "4 hours ago" },
-        { id: 3, action: "Payment received", pool: "Ocean View Pool", time: "6 hours ago" },
-        { id: 4, action: "User registered", pool: "New user: John Doe", time: "8 hours ago" }
-    ]
+    useEffect(() => {
+        async function fetchData() {
+            setLoading(true)
+            setError('')
+            try {
+                // Fetch pools owned by this admin
+                const poolRes = await fetch(`/api/pools?ownerEmail=${encodeURIComponent(currentUser.email)}`)
+                const poolData = poolRes.ok ? await poolRes.json() : []
+                setPools(poolData)
 
-    const renderIcon = (iconType) => {
-        switch (iconType) {
-            case "Building2":
-                return <Building2 className="h-6 w-6" />
-            case "Users":
-                return <Users className="h-6 w-6" />
-            case "Calendar":
-                return <Calendar className="h-6 w-6" />
-            case "DollarSign":
-                return <DollarSign className="h-6 w-6" />
-            case "Clock":
-                return <Clock className="h-6 w-6" />
-            case "Home":
-                return <Home className="h-6 w-6" />
-            default:
-                return <Building2 className="h-6 w-6" />
+                // Fetch bookings for these pools
+                const poolIds = poolData.map(p => p._id)
+                let allBookings = []
+                for (const poolId of poolIds) {
+                    const bookingsRes = await fetch(`/api/bookings?poolId=${poolId}`)
+                    if (bookingsRes.ok) {
+                        const bookingsData = await bookingsRes.json()
+                        allBookings = allBookings.concat(bookingsData)
+                    }
+                }
+                setBookings(allBookings)
+            } catch (err) {
+                setError('Failed to load dashboard data')
+            } finally {
+                setLoading(false)
+            }
         }
+        fetchData()
+    }, [])
+
+    if (loading) {
+        return <div className="p-8 text-center text-gray-500">Loading...</div>
     }
+    if (error) {
+        return <div className="p-8 text-center text-red-600">{error}</div>
+    }
+
+    // Stats
+    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0)
+    const totalBookings = bookings.length
+    const totalPools = pools.length
+    const pendingBookings = bookings.filter(b => b.status === 'Pending').length
+    const confirmedBookings = bookings.filter(b => b.status === 'Confirmed').length
+    const avgRating = pools.length ? (pools.reduce((sum, p) => sum + (p.rating || 0), 0) / pools.length).toFixed(2) : 'N/A'
 
     return (
         <div className="pt-6 space-y-6">
             {/* Welcome Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Welcome back, Admin!</h1>
-                <p className="text-gray-600 mt-2">Here's what's happening with your pools today.</p>
+                <h1 className="text-3xl font-bold text-gray-800">Welcome back, {currentUser.name}!</h1>
+                <p className="text-gray-600 mt-2">Here's your pool dashboard.</p>
             </div>
 
             {/* Stats Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {dashboardStats.map((stat, index) => (
-                    <Card key={index} className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                                    <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
-                                    <div className="flex items-center mt-2">
-                                        <TrendingUp className={`h-4 w-4 mr-1 ${stat.changeType === 'positive' ? 'text-green-500' : 'text-red-500'
-                                            }`} />
-                                        <span className={`text-sm font-medium ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                            {stat.change}
-                                        </span>
-                                        <span className="text-sm text-gray-500 ml-1">from last month</span>
-                                    </div>
-                                </div>
-                                <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                                    <div className={stat.color}>
-                                        {renderIcon(stat.iconType)}
-                                    </div>
-                                </div>
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Pools</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{totalPools}</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                            <div className="p-3 rounded-full bg-blue-50 text-blue-600">
+                                <Building2 className="h-6 w-6" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{totalBookings}</p>
+                            </div>
+                            <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+                                <Calendar className="h-6 w-6" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">${totalRevenue}</p>
+                            </div>
+                            <div className="p-3 rounded-full bg-orange-50 text-orange-600">
+                                <DollarSign className="h-6 w-6" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
-            {/* Charts and Activity Section */}
+            {/* Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Quick Actions */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -139,49 +124,44 @@ export default function AdminDashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 gap-4">
-                            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                                <Building2 className="h-6 w-6 text-blue-600 mb-2" />
-                                <p className="font-medium">Add Pool</p>
-                                <p className="text-sm text-gray-600">Create new pool listing</p>
-                            </button>
-                            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                                <Users className="h-6 w-6 text-green-600 mb-2" />
-                                <p className="font-medium">Manage Users</p>
-                                <p className="text-sm text-gray-600">View all users</p>
-                            </button>
-                            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                                <Calendar className="h-6 w-6 text-purple-600 mb-2" />
-                                <p className="font-medium">Bookings</p>
-                                <p className="text-sm text-gray-600">View appointments</p>
-                            </button>
-                            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                                <DollarSign className="h-6 w-6 text-orange-600 mb-2" />
-                                <p className="font-medium">Revenue</p>
-                                <p className="text-sm text-gray-600">View earnings</p>
-                            </button>
+                            <Link href="/dashboard/admin/pool/create">
+                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
+                                    <Building2 className="h-6 w-6 text-blue-600 mb-2" />
+                                    <p className="font-medium">Add Pool</p>
+                                    <p className="text-sm text-gray-600">Create new pool listing</p>
+                                </button>
+                            </Link>
+                            <Link href="/dashboard/admin/bookings">
+                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
+                                    <Calendar className="h-6 w-6 text-purple-600 mb-2" />
+                                    <p className="font-medium">Bookings</p>
+                                    <p className="text-sm text-gray-600">View and manage bookings</p>
+                                </button>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Recent Activity */}
+                {/* Recent Bookings */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5" />
-                            Recent Activity
+                            Recent Bookings
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {recentActivities.map((activity) => (
-                                <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            {bookings.slice(0, 5).map((booking) => (
+                                <div key={booking._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div>
-                                        <p className="font-medium text-gray-800">{activity.action}</p>
-                                        <p className="text-sm text-gray-600">{activity.pool}</p>
+                                        <p className="font-medium text-gray-800">{booking.customerName}</p>
+                                        <p className="text-sm text-gray-600">{booking.date?.slice(0, 10)} • {booking.time}</p>
                                     </div>
-                                    <span className="text-sm text-gray-500">{activity.time}</span>
+                                    <span className="text-sm text-gray-500 capitalize">{booking.status}</span>
                                 </div>
                             ))}
+                            {bookings.length === 0 && <div className="text-gray-500 text-sm">No bookings yet.</div>}
                         </div>
                     </CardContent>
                 </Card>
@@ -194,20 +174,9 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm opacity-90">Total Revenue</p>
-                                <p className="text-2xl font-bold">$45,231</p>
+                                <p className="text-2xl font-bold">${totalRevenue}</p>
                             </div>
                             <DollarSign className="h-8 w-8 opacity-80" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-90">Active Bookings</p>
-                                <p className="text-2xl font-bold">23</p>
-                            </div>
-                            <Calendar className="h-8 w-8 opacity-80" />
                         </div>
                     </CardContent>
                 </Card>
@@ -215,10 +184,21 @@ export default function AdminDashboardPage() {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm opacity-90">New Users</p>
-                                <p className="text-2xl font-bold">12</p>
+                                <p className="text-sm opacity-90">Confirmed Bookings</p>
+                                <p className="text-2xl font-bold">{confirmedBookings}</p>
                             </div>
-                            <Users className="h-8 w-8 opacity-80" />
+                            <Calendar className="h-8 w-8 opacity-80" />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm opacity-90">Pending Bookings</p>
+                                <p className="text-2xl font-bold">{pendingBookings}</p>
+                            </div>
+                            <Clock className="h-8 w-8 opacity-80" />
                         </div>
                     </CardContent>
                 </Card>
@@ -227,7 +207,7 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm opacity-90">Avg. Rating</p>
-                                <p className="text-2xl font-bold">4.8</p>
+                                <p className="text-2xl font-bold">{avgRating}</p>
                             </div>
                             <TrendingUp className="h-8 w-8 opacity-80" />
                         </div>

@@ -1,35 +1,20 @@
-import React from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Building2, Plus, Eye } from "lucide-react"
 
-// Mock data for pools
-const pools = [
-    {
-        id: 1,
-        name: "Dream Vali Poll",
-        size: "1256 sqft.",
-        location: "3106 Fleming Way, Richmond. USA",
-        image: "/pool-image-1.jpg" // You can replace with actual image paths
-    },
-    {
-        id: 2,
-        name: "Dream Vali Poll",
-        size: "1256 sqft.",
-        location: "3106 Fleming Way, Richmond. USA",
-        image: "/pool-image-2.jpg"
-    },
-    {
-        id: 3,
-        name: "Dream Vali Poll",
-        size: "1256 sqft.",
-        location: "3106 Fleming Way, Richmond. USA",
-        image: "/pool-image-3.jpg"
-    }
-]
+// Fetch pools from API
+async function getPools() {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/pools`, {
+        cache: 'no-store',
+    })
+    if (!res.ok) throw new Error('Failed to fetch pools')
+    return res.json()
+}
 
-const PoolList = () => {
+export default async function PoolList() {
+    const pools = await getPools()
+
     return (
         <div className='pt-6'>
             <div className="flex items-center justify-between mb-8">
@@ -46,8 +31,13 @@ const PoolList = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pools.length === 0 && (
+                    <div className="col-span-full text-center text-gray-500 py-12">
+                        No pools found.
+                    </div>
+                )}
                 {pools.map((pool) => (
-                    <Card key={pool.id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <Card key={pool._id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                         <div className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 relative">
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-white text-center">
@@ -73,7 +63,7 @@ const PoolList = () => {
 
                         <CardFooter className="p-4 pt-0">
                             <Link
-                                href={`/dashboard/admin/pool/${pool.id}`}
+                                href={`/dashboard/admin/pool/${pool._id}`}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
                             >
                                 <Eye className="h-4 w-4" />
@@ -86,5 +76,3 @@ const PoolList = () => {
         </div>
     )
 }
-
-export default PoolList

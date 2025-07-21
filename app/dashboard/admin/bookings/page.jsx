@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -138,8 +139,16 @@ const BookingsPage = () => {
                     <Calendar className="h-5 w-5 text-blue-600" />
                     <h1 className="text-2xl font-semibold text-gray-800">Bookings Management</h1>
                 </div>
-                <div className="text-sm text-gray-600">
-                    Total Bookings: {filteredBookings.length}
+                <div className="flex items-center gap-4">
+                    <div className="text-sm text-gray-600">
+                        Total Bookings: {filteredBookings.length}
+                    </div>
+                    <Link href="/dashboard/admin/bookings/create">
+                        <Button className="bg-blue-600 hover:bg-blue-700">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            Create Booking
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
