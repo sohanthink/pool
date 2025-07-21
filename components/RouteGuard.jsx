@@ -1,38 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-// Placeholder: Replace with your actual auth store or context
-const useAuth = () => {
-    // Example: Replace with real user/role logic
-    return {
-        user: { role: "admin" }, // or "superadmin"
-        token: true,
-    };
-};
+import { useSession } from "next-auth/react";
 
 export const RouteGuard = ({ children, allowedRoles }) => {
     const router = useRouter();
-    const { user, token } = useAuth();
-    const [isChecking, setIsChecking] = useState(true);
+    const { data: session, status } = useSession();
+    const isLoading = status === "loading";
+    const user = session?.user;
 
     useEffect(() => {
-        if (!token) {
-            router.replace("/auth/admin");
-            return;
+        if (!isLoading) {
+            if (!user) {
+                router.replace("/signin");
+                return;
+            }
+            if (allowedRoles && !allowedRoles.includes(user.role)) {
+                router.replace("/unauthorized");
+                return;
+            }
         }
-        if (allowedRoles && !allowedRoles.includes(user?.role)) {
-            router.replace("/unauthorized");
-            return;
-        }
-        setIsChecking(false);
-    }, [router, allowedRoles, token, user]);
+    }, [isLoading, user, allowedRoles, router]);
 
-    if (isChecking) {
+    if (isLoading) {
         return <div>Loading...</div>;
     }
-    if (!token || (allowedRoles && !allowedRoles.includes(user?.role))) {
+    if (!user || (allowedRoles && !allowedRoles.includes(user.role))) {
         return null;
     }
     return children;
