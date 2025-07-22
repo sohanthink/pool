@@ -5,13 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Calendar, DollarSign, TrendingUp, Activity, Clock, Home, Eye } from "lucide-react"
 import Link from 'next/link'
 
-// Mock current user (replace with real session logic later)
-const currentUser = {
-    role: 'admin',
-    email: 'owner1@example.com', // This should match the pool owner's email in the DB
-    name: 'Pool Owner'
-}
-
 export default function AdminDashboardPage() {
     const { data: session } = useSession();
     const user = session?.user;
@@ -27,7 +20,7 @@ export default function AdminDashboardPage() {
             setError('')
             try {
                 // Fetch pools owned by this admin
-                const poolRes = await fetch(`/api/pools?ownerEmail=${encodeURIComponent(currentUser.email)}`)
+                const poolRes = await fetch(`/api/pools?ownerEmail=${encodeURIComponent(user?.email)}`)
                 const poolData = poolRes.ok ? await poolRes.json() : []
                 setPools(poolData)
 

@@ -17,10 +17,16 @@ import {
     SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { signOut } from "next-auth/react";
 
 // Placeholder user and logout
 const user = { username: "Admin", role: "admin" };
-const LogOut = () => <button className="w-full text-left px-4 py-2 rounded hover:bg-red-50 text-red-600 font-medium">Log Out</button>;
+const LogOut = () => <button
+    onClick={() => signOut({ callbackUrl: '/' })}
+    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+>
+    Logout
+</button>
 
 const roleBasedNavItems = {
     admin: [
