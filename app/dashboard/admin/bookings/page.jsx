@@ -31,22 +31,24 @@ const BookingsPage = () => {
     const [statusFilter, setStatusFilter] = useState("all")
     const [poolFilter, setPoolFilter] = useState("all")
 
+    // Move fetchBookings outside useEffect for reuse
+    const fetchBookings = async () => {
+        setLoading(true)
+        setError('')
+        try {
+            const res = await fetch(`/api/bookings?ownerEmail=${encodeURIComponent(session.user.email)}`)
+            if (!res.ok) throw new Error('Failed to fetch bookings')
+            const data = await res.json()
+            setBookings(data)
+        } catch (err) {
+            setError('Failed to load bookings')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     useEffect(() => {
         if (!session?.user?.email) return;
-        async function fetchBookings() {
-            setLoading(true)
-            setError('')
-            try {
-                const res = await fetch(`/api/bookings?ownerEmail=${encodeURIComponent(session.user.email)}`)
-                if (!res.ok) throw new Error('Failed to fetch bookings')
-                const data = await res.json()
-                setBookings(data)
-            } catch (err) {
-                setError('Failed to load bookings')
-            } finally {
-                setLoading(false)
-            }
-        }
         fetchBookings()
     }, [session?.user?.email])
 
@@ -81,10 +83,19 @@ const BookingsPage = () => {
     }
 
     // Handle status change
-    const handleStatusChange = (bookingId, newStatus) => {
-        // In real app, this would update the backend
-        console.log(`Booking ${bookingId} status changed to ${newStatus}`)
-        alert(`Booking status updated to ${newStatus}`)
+    const handleStatusChange = async (bookingId, newStatus) => {
+        try {
+            const res = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (!res.ok) throw new Error('Failed to update status');
+            await fetchBookings(); // Refresh bookings after update
+            alert(`Booking status updated to ${newStatus}`);
+        } catch (err) {
+            alert('Failed to update booking status');
+        }
     }
 
     if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
@@ -236,19 +247,6 @@ const BookingsPage = () => {
                                 <div className="space-y-3">
                                     <h4 className="font-medium text-gray-800">Actions</h4>
                                     <div className="space-y-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full"
-                                            onClick={() => {
-                                                // View booking details
-                                                console.log("View booking:", booking._id || booking.id)
-                                            }}
-                                        >
-                                            <Eye className="h-4 w-4 mr-2" />
-                                            View Details
-                                        </Button>
-
                                         {booking.status === "Pending" && (
                                             <>
                                                 <Button

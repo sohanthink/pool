@@ -17,10 +17,10 @@ import {
     SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { signOut } from "next-auth/react";
 
-// Placeholder user and logout
-const user = { username: "Admin", role: "admin" };
+import { signOut, useSession } from "next-auth/react";
+
+
 const LogOut = () => <button
     onClick={() => signOut({ callbackUrl: '/' })}
     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
@@ -51,14 +51,6 @@ const roleBasedNavItems = {
                 { title: "Create Booking", url: "/dashboard/admin/bookings/create" },
             ],
         },
-        // {
-        //     title: "Appointments",
-        //     icon: <Calendar className="h-4 w-4" />,
-        //     items: [
-        //         { title: "All Appointments", url: "/dashboard/admin/appointment" },
-        //         { title: "Create Appointment", url: "/dashboard/admin/appointment/createappointment" },
-        //     ],
-        // }
     ],
     superadmin: [
         {
@@ -98,6 +90,10 @@ export function AppSideBar({ role = "admin", ...props }) {
     const [expandedItems, setExpandedItems] = React.useState({});
     const navItems = roleBasedNavItems[role] || roleBasedNavItems.admin;
 
+
+    const { data: session } = useSession();
+    const user = session?.user;
+
     const toggleExpand = (title) => {
         setExpandedItems(prev => ({
             ...prev,
@@ -126,7 +122,7 @@ export function AppSideBar({ role = "admin", ...props }) {
                                         <GalleryVerticalEnd className="size-4" />
                                     </div>
                                     <div className="flex flex-col leading-none">
-                                        <span className="font-semibold">{user?.username || 'User'}</span>
+                                        <span className="font-semibold">{user?.name || 'User'}</span>
                                         <span className="text-sm text-muted-foreground capitalize">
                                             {user?.role || "User"}
                                         </span>

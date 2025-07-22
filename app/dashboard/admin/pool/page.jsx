@@ -67,13 +67,21 @@ export default function PoolList() {
                 )}
                 {pools.map((pool) => (
                     <Card key={pool._id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                        <div className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 relative">
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="text-white text-center">
-                                    <Building2 className="h-12 w-12 mx-auto mb-2 opacity-80" />
-                                    <p className="text-sm opacity-80">Pool Image</p>
+                        <div className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 relative flex items-center justify-center overflow-hidden">
+                            {pool.images && pool.images.length > 0 && pool.images[0] ? (
+                                <img
+                                    src={pool.images[0].startsWith('/uploads/') ? pool.images[0] : `/uploads/${pool.images[0].replace(/^\/+/, '')}`}
+                                    alt={pool.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="text-white text-center">
+                                        <Building2 className="h-12 w-12 mx-auto mb-2 opacity-80" />
+                                        <p className="text-sm opacity-80">Pool Image</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         <CardContent className="p-4">

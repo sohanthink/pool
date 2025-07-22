@@ -21,6 +21,7 @@ import {
     Image as ImageIcon,
     AlertCircle
 } from "lucide-react"
+import { useRouter } from 'next/navigation';
 
 const PoolDetails = ({ params }) => {
     const resolvedParams = React.use(params)
@@ -29,6 +30,7 @@ const PoolDetails = ({ params }) => {
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const router = useRouter();
 
     useEffect(() => {
         async function fetchData() {
@@ -64,6 +66,19 @@ const PoolDetails = ({ params }) => {
         return <div className="p-8 text-center text-red-600 flex flex-col items-center"><AlertCircle className="h-8 w-8 mb-2" />{error || 'Pool not found'}</div>
     }
 
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this pool and all its images?')) return;
+        try {
+            const res = await fetch(`/api/pools/${poolId}/delete-with-images`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) throw new Error('Failed to delete pool');
+            router.push('/dashboard/admin/pool');
+        } catch (err) {
+            alert('Failed to delete pool.');
+        }
+    };
+
     return (
         <div className="pt-6 space-y-6">
             {/* Header */}
@@ -92,11 +107,13 @@ const PoolDetails = ({ params }) => {
                         <LinkIcon className="h-4 w-4 mr-2" />
                         Share Booking Link
                     </Button>
-                    <Button variant="outline">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Pool
+                    <Button variant="outline" asChild>
+                        <Link href={`/dashboard/admin/pool/${poolId}/edit`}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Pool
+                        </Link>
                     </Button>
-                    <Button variant="destructive">
+                    <Button variant="destructive" onClick={handleDelete}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
                     </Button>
@@ -117,13 +134,21 @@ const PoolDetails = ({ params }) => {
                         <CardContent>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {(pool.images && pool.images.length > 0 ? pool.images : [null, null, null]).map((image, index) => (
-                                    <div key={index} className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg relative">
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="text-white text-center">
-                                                <Building2 className="h-8 w-8 mx-auto mb-1 opacity-80" />
-                                                <p className="text-xs opacity-80">{image ? `Image ${index + 1}` : 'No Image'}</p>
+                                    <div key={index} className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg relative flex items-center justify-center overflow-hidden">
+                                        {image ? (
+                                            <img
+                                                src={image.startsWith('/uploads/') ? image : `/uploads/${image?.replace(/^\/+/, '')}`}
+                                                alt={`Pool Image ${index + 1}`}
+                                                className="w-full h-full object-cover rounded-lg"
+                                            />
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="text-white text-center">
+                                                    <Building2 className="h-8 w-8 mx-auto mb-1 opacity-80" />
+                                                    <p className="text-xs opacity-80">No Image</p>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

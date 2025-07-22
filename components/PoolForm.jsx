@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle } from "lucide-react"
+import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { useSession } from "next-auth/react";
+import { useRef } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const initialState = {
     ownerName: '',
@@ -21,24 +24,48 @@ const initialState = {
     images: ['', '', '', '', ''], // up to 5 image URLs
 }
 
-const PoolForm = () => {
+const MAX_IMAGE_SIZE_MB = 2;
+const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+
+const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
     const { data: session, status } = useSession();
-    const [form, setForm] = useState({
-        ownerName: session?.user?.name || '',
-        ownerEmail: session?.user?.email || '',
-        ownerPhone: session?.user?.phone || '',
-        poolName: '',
-        poolSize: '',
-        location: '',
-        description: '',
-        capacity: '',
-        price: '',
-        amenities: '',
-        images: ['', '', '', '', ''],
+    const [form, setForm] = useState(() => {
+        if (initialData) {
+            return {
+                ownerName: initialData.owner?.name || session?.user?.name || '',
+                ownerEmail: initialData.owner?.email || session?.user?.email || '',
+                ownerPhone: initialData.owner?.phone || session?.user?.phone || '',
+                poolName: initialData.name || '',
+                poolSize: initialData.size || '',
+                location: initialData.location || '',
+                description: initialData.description || '',
+                capacity: initialData.capacity?.toString() || '',
+                price: initialData.price?.toString() || '',
+                amenities: Array.isArray(initialData.amenities) ? initialData.amenities.join(', ') : '',
+                images: Array.isArray(initialData.images) ? [...initialData.images, '', '', '', ''].slice(0, 5) : ['', '', '', '', ''],
+            }
+        }
+        return {
+            ownerName: session?.user?.name || '',
+            ownerEmail: session?.user?.email || '',
+            ownerPhone: session?.user?.phone || '',
+            poolName: '',
+            poolSize: '',
+            location: '',
+            description: '',
+            capacity: '',
+            price: '',
+            amenities: '',
+            images: ['', '', '', '', ''],
+        }
     });
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState('')
+    const fileInputRefs = [useRef(), useRef(), useRef(), useRef(), useRef()];
+    const [imageErrors, setImageErrors] = useState([null, null, null, null, null]);
+    const [uploading, setUploading] = useState([false, false, false, false, false]);
+    const [uploaded, setUploaded] = useState([false, false, false, false, false]);
 
     // Update owner fields if session changes
     React.useEffect(() => {
@@ -65,17 +92,61 @@ const PoolForm = () => {
         })
     }
 
+    const handleDrop = async (index, files) => {
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        if (file.size > MAX_IMAGE_SIZE) {
+            setImageErrors(prev => {
+                const errs = [...prev];
+                errs[index] = `Image must be less than ${MAX_IMAGE_SIZE_MB}MB.`;
+                return errs;
+            });
+            return;
+        }
+        setImageErrors(prev => {
+            const errs = [...prev];
+            errs[index] = null;
+            return errs;
+        });
+        setUploading(prev => { const arr = [...prev]; arr[index] = true; return arr; });
+        setUploaded(prev => { const arr = [...prev]; arr[index] = false; return arr; });
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Failed to upload image');
+            const data = await res.json();
+            setForm((prev) => {
+                const images = [...prev.images];
+                images[index] = data.filePath;
+                return { ...prev, images };
+            });
+            setUploaded(prev => { const arr = [...prev]; arr[index] = true; return arr; });
+        } catch (err) {
+            setImageErrors(prev => {
+                const errs = [...prev];
+                errs[index] = 'Image upload failed.';
+                return errs;
+            });
+        } finally {
+            setUploading(prev => { const arr = [...prev]; arr[index] = false; return arr; });
+        }
+    };
+
     const handleSubmit = async (e) => {
-        e.preventDefault()
-        setLoading(true)
-        setError('')
-        setSuccess(false)
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setSuccess(false);
         try {
             // Validate required fields (phone is OPTIONAL)
             if (!form.ownerName || !form.ownerEmail || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity || !form.price) {
-                setError('Please fill in all required fields.')
-                setLoading(false)
-                return
+                setError('Please fill in all required fields.');
+                setLoading(false);
+                return;
             }
             const owner = {
                 name: form.ownerName,
@@ -84,47 +155,53 @@ const PoolForm = () => {
             if (form.ownerPhone) {
                 owner.phone = form.ownerPhone;
             }
-            const res = await fetch('/api/pools', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: form.poolName,
-                    description: form.description,
-                    location: form.location,
-                    size: form.poolSize,
-                    capacity: Number(form.capacity),
-                    price: Number(form.price),
-                    owner,
-                    amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
-                    images: form.images.filter(Boolean) // images are optional
-                })
-            })
-            if (!res.ok) {
-                const data = await res.json()
-                setError(data.error || 'Failed to create pool')
-                setLoading(false)
-                return
+            const payload = {
+                name: form.poolName,
+                description: form.description,
+                location: form.location,
+                size: form.poolSize,
+                capacity: Number(form.capacity),
+                price: Number(form.price),
+                owner,
+                amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
+                images: form.images.filter(Boolean)
+            };
+            if (onSubmit) {
+                await onSubmit(payload);
+                setSuccess(true);
+            } else {
+                const res = await fetch('/api/pools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    setError(data.error || 'Failed to create pool');
+                    setLoading(false);
+                    return;
+                }
+                setSuccess(true);
+                setForm({
+                    ownerName: session?.user?.name || '',
+                    ownerEmail: session?.user?.email || '',
+                    ownerPhone: session?.user?.phone || '',
+                    poolName: '',
+                    poolSize: '',
+                    location: '',
+                    description: '',
+                    capacity: '',
+                    price: '',
+                    amenities: '',
+                    images: ['', '', '', '', ''],
+                });
             }
-            setSuccess(true)
-            setForm({
-                ownerName: session?.user?.name || '',
-                ownerEmail: session?.user?.email || '',
-                ownerPhone: session?.user?.phone || '',
-                poolName: '',
-                poolSize: '',
-                location: '',
-                description: '',
-                capacity: '',
-                price: '',
-                amenities: '',
-                images: ['', '', '', '', ''],
-            })
         } catch (err) {
-            setError('Something went wrong!')
+            setError('Something went wrong!');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     return (
         <div className="max-w-4xl pt-6">
@@ -282,24 +359,51 @@ const PoolForm = () => {
                 </div>
                 <div className="border-t pt-6">
                     <Label className="text-sm font-medium text-gray-700 mb-4 block">
-                        Pool Images (URLs)
+                        Pool Images (Drag & drop or click to upload)
                     </Label>
                     <div className="flex items-center gap-4">
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                             {[...Array(5)].map((_, index) => (
-                                <div key={index} className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center">
-                                    <ImageIcon className="h-6 w-6 text-gray-400" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Image URL"
-                                        className="mt-1 text-xs px-1 py-0.5"
-                                        value={form.images[index]}
-                                        onChange={e => handleImageChange(index, e.target.value)}
+                                <Card key={index} className="w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
+                                    <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
+                                        {form.images[index] ? (
+                                            <img src={form.images[index].startsWith('/uploads/') ? form.images[index] : `/uploads/${form.images[index].replace(/^\/+/, '')}`} alt={`Pool ${index + 1}`} className="w-full h-full object-cover rounded-lg" />
+                                        ) : (
+                                            <span className="text-gray-400 text-xs">Drop or click</span>
+                                        )}
+                                        {uploading[index] && (
+                                            <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
+                                                <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                                            </div>
+                                        )}
+                                        {uploaded[index] && !uploading[index] && (
+                                            <CheckCircle className="absolute top-2 right-2 text-green-500 bg-white rounded-full z-30" size={20} />
+                                        )}
+                                        <Input
+                                            ref={fileInputRefs[index]}
+                                            id={`image-upload-${index}`}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={e => handleDrop(index, e.target.files)}
+                                        />
+                                        {imageErrors[index] && (
+                                            <Badge variant="destructive" className="absolute bottom-0 left-0 right-0 text-xs whitespace-normal">{imageErrors[index]}</Badge>
+                                        )}
+                                    </CardContent>
+                                    <div
+                                        className="absolute inset-0 z-10"
+                                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                                        onDrop={e => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleDrop(index, e.dataTransfer.files);
+                                        }}
                                     />
-                                </div>
+                                </Card>
                             ))}
                         </div>
-                        <span className="text-sm text-gray-500">Paste up to 5 image URLs</span>
+                        <span className="text-sm text-gray-500">Upload up to 5 images (max 1MB each)</span>
                     </div>
                 </div>
                 {error && (
@@ -316,7 +420,7 @@ const PoolForm = () => {
                 )}
                 <div className="flex justify-end pt-4">
                     <Button type="submit" className="px-8" disabled={loading}>
-                        {loading ? 'Submitting...' : 'Submit'}
+                        {loading ? (submitLabel ? `Submitting...` : 'Submitting...') : (submitLabel || 'Submit')}
                     </Button>
                 </div>
             </form>
