@@ -1,19 +1,35 @@
-import Link from 'next/link'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Building2, Plus, Eye } from "lucide-react"
+"use client";
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Building2, Plus, Eye } from "lucide-react";
 
-// Fetch pools from API
-async function getPools() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/pools`, {
-        cache: 'no-store',
-    })
-    if (!res.ok) throw new Error('Failed to fetch pools')
-    return res.json()
-}
+export default function PoolList() {
+    const [pools, setPools] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-export default async function PoolList() {
-    const pools = await getPools()
+    useEffect(() => {
+        async function fetchPools() {
+            setLoading(true);
+            setError('');
+            try {
+                const res = await fetch('/api/pools');
+                if (!res.ok) throw new Error('Failed to fetch pools');
+                const data = await res.json();
+                setPools(data);
+            } catch (err) {
+                setError('Failed to load pools');
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchPools();
+    }, []);
+
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+    if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
     return (
         <div className='pt-6'>
@@ -74,5 +90,5 @@ export default async function PoolList() {
                 ))}
             </div>
         </div>
-    )
+    );
 }

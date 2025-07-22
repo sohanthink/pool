@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useState } from 'react'
+import { useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Calendar, DollarSign, TrendingUp, Activity, Clock, Home, Eye } from "lucide-react"
 import Link from 'next/link'
@@ -12,6 +13,9 @@ const currentUser = {
 }
 
 export default function AdminDashboardPage() {
+    const { data: session } = useSession();
+    const user = session?.user;
+
     const [pools, setPools] = useState([])
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
@@ -65,9 +69,17 @@ export default function AdminDashboardPage() {
     return (
         <div className="pt-6 space-y-6">
             {/* Welcome Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Welcome back, {currentUser.name}!</h1>
-                <p className="text-gray-600 mt-2">Here's your pool dashboard.</p>
+            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Welcome back, {user?.name || 'Admin'}!</h1>
+                    <p className="text-gray-600 mt-2">Email: {user?.email}</p>
+                </div>
+                <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                >
+                    Logout
+                </button>
             </div>
 
             {/* Stats Cards Grid */}
