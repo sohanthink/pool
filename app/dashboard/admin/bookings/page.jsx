@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,92 +20,48 @@ import {
     MapPin,
     DollarSign
 } from "lucide-react"
-
-// Mock bookings data
-const bookings = [
-    {
-        id: 1,
-        poolName: "Dream Valley Pool",
-        poolId: 1,
-        customerName: "Alice Johnson",
-        customerEmail: "alice@email.com",
-        customerPhone: "+1 (555) 123-4567",
-        date: "2024-01-15",
-        time: "2:00 PM - 6:00 PM",
-        duration: 4,
-        guests: 8,
-        totalPrice: 600,
-        status: "Confirmed",
-        notes: "Birthday party for kids",
-        createdAt: "2024-01-10"
-    },
-    {
-        id: 2,
-        poolName: "Dream Valley Pool",
-        poolId: 1,
-        customerName: "Bob Wilson",
-        customerEmail: "bob@email.com",
-        customerPhone: "+1 (555) 234-5678",
-        date: "2024-01-18",
-        time: "10:00 AM - 2:00 PM",
-        duration: 4,
-        guests: 12,
-        totalPrice: 600,
-        status: "Pending",
-        notes: "Family gathering",
-        createdAt: "2024-01-12"
-    },
-    {
-        id: 3,
-        poolName: "Dream Valley Pool",
-        poolId: 1,
-        customerName: "Carol Davis",
-        customerEmail: "carol@email.com",
-        customerPhone: "+1 (555) 345-6789",
-        date: "2024-01-20",
-        time: "4:00 PM - 8:00 PM",
-        duration: 4,
-        guests: 15,
-        totalPrice: 600,
-        status: "Confirmed",
-        notes: "Corporate event",
-        createdAt: "2024-01-14"
-    },
-    {
-        id: 4,
-        poolName: "Sunset Pool",
-        poolId: 2,
-        customerName: "David Brown",
-        customerEmail: "david@email.com",
-        customerPhone: "+1 (555) 456-7890",
-        date: "2024-01-22",
-        time: "1:00 PM - 5:00 PM",
-        duration: 4,
-        guests: 6,
-        totalPrice: 600,
-        status: "Cancelled",
-        notes: "Weather concerns",
-        createdAt: "2024-01-15"
-    }
-]
+import { useSession } from "next-auth/react";
 
 const BookingsPage = () => {
+    const { data: session, status } = useSession();
+    const [bookings, setBookings] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
     const [poolFilter, setPoolFilter] = useState("all")
 
+    useEffect(() => {
+        if (!session?.user?.email) return;
+        async function fetchBookings() {
+            setLoading(true)
+            setError('')
+            try {
+                const res = await fetch(`/api/bookings?ownerEmail=${encodeURIComponent(session.user.email)}`)
+                if (!res.ok) throw new Error('Failed to fetch bookings')
+                const data = await res.json()
+                setBookings(data)
+            } catch (err) {
+                setError('Failed to load bookings')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchBookings()
+    }, [session?.user?.email])
+
     // Get unique pools for filter
-    const pools = [...new Set(bookings.map(booking => booking.poolName))]
+    const pools = [...new Set(bookings.map(booking => booking.poolId?.name || booking.poolName))]
 
     // Filter bookings
     const filteredBookings = bookings.filter(booking => {
         const matchesSearch =
-            booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            booking.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            booking.poolName.toLowerCase().includes(searchTerm.toLowerCase())
+            (booking.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (booking.customerEmail?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (booking.poolId?.name?.toLowerCase() || booking.poolName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
 
         const matchesStatus = statusFilter === "all" || booking.status === statusFilter
-        const matchesPool = poolFilter === "all" || booking.poolName === poolFilter
+        const matchesPool = poolFilter === "all" || (booking.poolId?.name || booking.poolName) === poolFilter
 
         return matchesSearch && matchesStatus && matchesPool
     })
@@ -130,6 +86,10 @@ const BookingsPage = () => {
         console.log(`Booking ${bookingId} status changed to ${newStatus}`)
         alert(`Booking status updated to ${newStatus}`)
     }
+
+    if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>
+    if (error) return <div className="p-8 text-center text-red-600">{error}</div>
 
     return (
         <div className="pt-6 space-y-6">
@@ -211,21 +171,21 @@ const BookingsPage = () => {
             {/* Bookings List */}
             <div className="space-y-4">
                 {filteredBookings.map((booking) => (
-                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                    <Card key={booking._id || booking.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                                 {/* Booking Info */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-semibold text-lg text-gray-800">
-                                            Booking #{booking.id}
+                                            Booking #{booking._id || booking.id}
                                         </h3>
                                         {getStatusBadge(booking.status)}
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <Calendar className="h-4 w-4" />
-                                            <span>{booking.date} • {booking.time}</span>
+                                            <span>{booking.date?.slice(0, 10) || booking.date} • {booking.time}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <Clock className="h-4 w-4" />
@@ -244,7 +204,7 @@ const BookingsPage = () => {
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <MapPin className="h-4 w-4" />
-                                            <span>{booking.poolName}</span>
+                                            <span>{booking.poolId?.name || booking.poolName}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <User className="h-4 w-4" />
@@ -282,7 +242,7 @@ const BookingsPage = () => {
                                             className="w-full"
                                             onClick={() => {
                                                 // View booking details
-                                                console.log("View booking:", booking.id)
+                                                console.log("View booking:", booking._id || booking.id)
                                             }}
                                         >
                                             <Eye className="h-4 w-4 mr-2" />
@@ -294,7 +254,7 @@ const BookingsPage = () => {
                                                 <Button
                                                     size="sm"
                                                     className="w-full bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleStatusChange(booking.id, "Confirmed")}
+                                                    onClick={() => handleStatusChange(booking._id || booking.id, "Confirmed")}
                                                 >
                                                     <CheckCircle className="h-4 w-4 mr-2" />
                                                     Confirm
@@ -303,7 +263,7 @@ const BookingsPage = () => {
                                                     variant="destructive"
                                                     size="sm"
                                                     className="w-full"
-                                                    onClick={() => handleStatusChange(booking.id, "Cancelled")}
+                                                    onClick={() => handleStatusChange(booking._id || booking.id, "Cancelled")}
                                                 >
                                                     <XCircle className="h-4 w-4 mr-2" />
                                                     Cancel

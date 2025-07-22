@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle } from "lucide-react"
+import { useSession } from "next-auth/react";
 
 const initialState = {
     ownerName: '',
@@ -21,10 +22,35 @@ const initialState = {
 }
 
 const PoolForm = () => {
-    const [form, setForm] = useState(initialState)
+    const { data: session, status } = useSession();
+    const [form, setForm] = useState({
+        ownerName: session?.user?.name || '',
+        ownerEmail: session?.user?.email || '',
+        ownerPhone: session?.user?.phone || '',
+        poolName: '',
+        poolSize: '',
+        location: '',
+        description: '',
+        capacity: '',
+        price: '',
+        amenities: '',
+        images: ['', '', '', '', ''],
+    });
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState('')
+
+    // Update owner fields if session changes
+    React.useEffect(() => {
+        setForm((prev) => ({
+            ...prev,
+            ownerName: session?.user?.name || '',
+            ownerEmail: session?.user?.email || '',
+            ownerPhone: session?.user?.phone || '',
+        }));
+    }, [session?.user?.name, session?.user?.email, session?.user?.phone]);
+
+    if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
 
     const handleChange = (e) => {
         const { id, value } = e.target
@@ -45,11 +71,18 @@ const PoolForm = () => {
         setError('')
         setSuccess(false)
         try {
-            // Validate required fields
-            if (!form.ownerName || !form.ownerEmail || !form.ownerPhone || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity || !form.price) {
+            // Validate required fields (phone is OPTIONAL)
+            if (!form.ownerName || !form.ownerEmail || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity || !form.price) {
                 setError('Please fill in all required fields.')
                 setLoading(false)
                 return
+            }
+            const owner = {
+                name: form.ownerName,
+                email: form.ownerEmail,
+            };
+            if (form.ownerPhone) {
+                owner.phone = form.ownerPhone;
             }
             const res = await fetch('/api/pools', {
                 method: 'POST',
@@ -61,13 +94,9 @@ const PoolForm = () => {
                     size: form.poolSize,
                     capacity: Number(form.capacity),
                     price: Number(form.price),
-                    owner: {
-                        name: form.ownerName,
-                        email: form.ownerEmail,
-                        phone: form.ownerPhone
-                    },
+                    owner,
                     amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
-                    images: form.images.filter(Boolean)
+                    images: form.images.filter(Boolean) // images are optional
                 })
             })
             if (!res.ok) {
@@ -77,7 +106,19 @@ const PoolForm = () => {
                 return
             }
             setSuccess(true)
-            setForm(initialState)
+            setForm({
+                ownerName: session?.user?.name || '',
+                ownerEmail: session?.user?.email || '',
+                ownerPhone: session?.user?.phone || '',
+                poolName: '',
+                poolSize: '',
+                location: '',
+                description: '',
+                capacity: '',
+                price: '',
+                amenities: '',
+                images: ['', '', '', '', ''],
+            })
         } catch (err) {
             setError('Something went wrong!')
         } finally {
@@ -107,6 +148,7 @@ const PoolForm = () => {
                                 value={form.ownerName}
                                 onChange={handleChange}
                                 required
+                                readOnly
                             />
                         </div>
                         <div>
@@ -121,6 +163,7 @@ const PoolForm = () => {
                                 value={form.ownerEmail}
                                 onChange={handleChange}
                                 required
+                                readOnly
                             />
                         </div>
                         <div>
@@ -134,7 +177,6 @@ const PoolForm = () => {
                                 className="mt-1"
                                 value={form.ownerPhone}
                                 onChange={handleChange}
-                                required
                             />
                         </div>
                         <div>

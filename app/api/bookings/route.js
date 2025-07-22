@@ -13,6 +13,7 @@ export async function GET(request) {
     const poolId = searchParams.get("poolId");
     const customerEmail = searchParams.get("customerEmail");
     const date = searchParams.get("date");
+    const ownerEmail = searchParams.get("ownerEmail");
 
     let query = {};
 
@@ -37,6 +38,13 @@ export async function GET(request) {
         $gte: startDate,
         $lt: endDate,
       };
+    }
+
+    // If filtering by ownerEmail, find pools for that owner and filter bookings by those poolIds
+    if (ownerEmail) {
+      const pools = await Pool.find({ "owner.email": ownerEmail }, { _id: 1 });
+      const poolIds = pools.map((pool) => pool._id);
+      query.poolId = { $in: poolIds };
     }
 
     const bookings = await Booking.find(query)

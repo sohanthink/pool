@@ -3,19 +3,23 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Building2, Plus, Eye } from "lucide-react";
+import { Building2, Plus, Eye, Copy } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export default function PoolList() {
+    const { data: session, status } = useSession();
     const [pools, setPools] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [copiedPoolId, setCopiedPoolId] = useState(null);
 
     useEffect(() => {
+        if (!session?.user?.email) return;
         async function fetchPools() {
             setLoading(true);
             setError('');
             try {
-                const res = await fetch('/api/pools');
+                const res = await fetch(`/api/pools?ownerEmail=${encodeURIComponent(session.user.email)}`);
                 if (!res.ok) throw new Error('Failed to fetch pools');
                 const data = await res.json();
                 setPools(data);
@@ -26,8 +30,17 @@ export default function PoolList() {
             }
         }
         fetchPools();
-    }, []);
+    }, [session?.user?.email]);
 
+    // Function to copy booking link
+    const handleCopyLink = (poolId) => {
+        const link = `${window.location.origin}/pool/${poolId}/book`;
+        navigator.clipboard.writeText(link);
+        setCopiedPoolId(poolId);
+        setTimeout(() => setCopiedPoolId(null), 1500);
+    };
+
+    if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
     if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
     if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
@@ -77,7 +90,7 @@ export default function PoolList() {
                             </div>
                         </CardContent>
 
-                        <CardFooter className="p-4 pt-0">
+                        <CardFooter className="p-4 pt-0 flex flex-col gap-2">
                             <Link
                                 href={`/dashboard/admin/pool/${pool._id}`}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
@@ -85,6 +98,16 @@ export default function PoolList() {
                                 <Eye className="h-4 w-4" />
                                 View Details
                             </Link>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 mt-2"
+                                onClick={() => handleCopyLink(pool._id)}
+                            >
+                                <Copy className="h-4 w-4" />
+                                {copiedPoolId === pool._id ? "Link Copied!" : "Share Link"}
+                            </Button>
                         </CardFooter>
                     </Card>
                 ))}

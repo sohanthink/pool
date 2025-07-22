@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,39 +24,18 @@ import {
     AlertCircle
 } from "lucide-react"
 
-// Mock pool data - in real app, fetch by ID
-const poolData = {
-    id: 1,
-    name: "Dream Valley Pool",
-    size: "1256 sqft.",
-    location: "3106 Fleming Way, Richmond, USA",
-    description: "A beautiful outdoor swimming pool with modern amenities, perfect for family gatherings and relaxation. Features include a diving board, shallow end for children, and comfortable seating areas.",
-    price: "$150/hour",
-    capacity: "25 people",
-    status: "Active",
-    rating: 4.8,
-    amenities: ["Diving Board", "Shallow End", "Heating System", "Lighting", "Security Fence", "Parking"],
-    images: ["/pool-image-1.jpg", "/pool-image-2.jpg", "/pool-image-3.jpg"],
-    // Available time slots (in real app, this would be fetched from backend)
-    availableSlots: {
-        "2024-01-15": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"],
-        "2024-01-16": ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"],
-        "2024-01-17": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"],
-        "2024-01-18": ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"],
-        "2024-01-19": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"],
-        "2024-01-20": ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"],
-    },
-    // Booked slots (in real app, this would be fetched from backend)
-    bookedSlots: {
-        "2024-01-15": ["12:00", "13:00"],
-        "2024-01-17": ["12:00", "13:00"],
-        "2024-01-19": ["12:00", "13:00"],
-    }
-}
-
 const BookingPage = ({ params }) => {
-    const resolvedParams = React.use(params)
-    const poolId = resolvedParams.id
+    // Fix params usage for Next.js 15+
+    let poolId
+    try {
+        // If params is a promise (Next.js 15+), unwrap it
+        poolId = typeof params.then === 'function' ? React.use(params).id : params.id
+    } catch {
+        poolId = params.id
+    }
+    const [poolData, setPoolData] = useState(null)
+    const [loadingPool, setLoadingPool] = useState(true)
+    const [errorPool, setErrorPool] = useState('')
 
     const [selectedDate, setSelectedDate] = useState(null)
     const [selectedTime, setSelectedTime] = useState("")
@@ -70,50 +49,128 @@ const BookingPage = ({ params }) => {
     })
     const [isBooking, setIsBooking] = useState(false)
     const [bookingSuccess, setBookingSuccess] = useState(false)
+    const [bookingError, setBookingError] = useState("")
 
-    // Get available time slots for selected date
-    const getAvailableSlots = (date) => {
-        if (!date) return []
-        const dateStr = date.toISOString().split('T')[0]
-        const allSlots = poolData.availableSlots[dateStr] || []
-        const bookedSlots = poolData.bookedSlots[dateStr] || []
-        return allSlots.filter(slot => !bookedSlots.includes(slot))
-    }
+    // Availability state
+    const [availableSlots, setAvailableSlots] = useState([])
+    const [allSlots, setAllSlots] = useState([])
+    const [loadingSlots, setLoadingSlots] = useState(false)
+    const [errorSlots, setErrorSlots] = useState('')
 
-    // Calculate total price
+    // Fetch pool details
+    useEffect(() => {
+        async function fetchPool() {
+            setLoadingPool(true)
+            setErrorPool('')
+            try {
+                const res = await fetch(`/api/pools/${poolId}`)
+                if (!res.ok) throw new Error('Failed to fetch pool')
+                const data = await res.json()
+                setPoolData(data)
+            } catch (err) {
+                setErrorPool('Failed to load pool details')
+            } finally {
+                setLoadingPool(false)
+            }
+        }
+        fetchPool()
+    }, [poolId])
+
+    // Fetch available slots when date changes
+    useEffect(() => {
+        if (!selectedDate) return
+        async function fetchSlots() {
+            setLoadingSlots(true)
+            setErrorSlots('')
+            try {
+                const dateStr = selectedDate.toISOString().split('T')[0]
+                const res = await fetch(`/api/pools/${poolId}/availability?date=${dateStr}`)
+                if (!res.ok) throw new Error('Failed to fetch availability')
+                const data = await res.json()
+                setAvailableSlots(data.availableSlots)
+                setAllSlots(data.allSlots)
+            } catch (err) {
+                setErrorSlots('Failed to load available slots')
+                setAvailableSlots([])
+                setAllSlots([])
+            } finally {
+                setLoadingSlots(false)
+            }
+        }
+        fetchSlots()
+    }, [poolId, selectedDate])
+
+    // Fix calculatePrice to handle both string and number price types
     const calculatePrice = () => {
-        const hourlyRate = parseInt(poolData.price.replace('$', ''))
+        if (!poolData) return 0
+        let hourlyRate = 0
+        if (typeof poolData.price === 'string') {
+            hourlyRate = parseInt(poolData.price.replace('$', ''))
+        } else if (typeof poolData.price === 'number') {
+            hourlyRate = poolData.price
+        }
         return hourlyRate * parseInt(duration)
     }
 
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setBookingError("")
         if (!selectedDate || !selectedTime) {
-            alert("Please select a date and time")
+            setBookingError("Please select a date and time")
             return
         }
-
+        if (!formData.name || !formData.email || !formData.phone) {
+            setBookingError("Please fill in all required fields")
+            return
+        }
         setIsBooking(true)
-
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        setIsBooking(false)
-        setBookingSuccess(true)
-
-        // Reset form
-        setSelectedDate(null)
-        setSelectedTime("")
-        setDuration("2")
-        setFormData({
-            name: "",
-            email: "",
-            phone: "",
-            guests: "",
-            notes: ""
-        })
+        try {
+            const dateStr = selectedDate.toISOString().split('T')[0]
+            const res = await fetch("/api/bookings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    poolId,
+                    customerName: formData.name,
+                    customerEmail: formData.email,
+                    customerPhone: formData.phone,
+                    date: dateStr,
+                    time: selectedTime,
+                    duration: parseInt(duration),
+                    totalPrice: calculatePrice(),
+                    guests: formData.guests,
+                    notes: formData.notes,
+                })
+            })
+            if (!res.ok) {
+                const data = await res.json()
+                setBookingError(data.error || "Failed to create booking")
+                setIsBooking(false)
+                return
+            }
+            setIsBooking(false)
+            setBookingSuccess(true)
+            // Reset form
+            setSelectedDate(null)
+            setSelectedTime("")
+            setDuration("2")
+            setFormData({
+                name: "",
+                email: "",
+                phone: "",
+                guests: "",
+                notes: ""
+            })
+        } catch (err) {
+            setBookingError("Failed to create booking. Please try again.")
+            setIsBooking(false)
+        }
     }
+
+    if (loadingPool) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading pool details...</div>
+    if (errorPool) return <div className="min-h-screen flex items-center justify-center text-red-600">{errorPool}</div>
+    if (!poolData) return null
 
     if (bookingSuccess) {
         return (
@@ -218,6 +275,9 @@ const BookingPage = ({ params }) => {
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-6">
+                                    {bookingError && (
+                                        <div className="text-red-600 text-sm mb-2">{bookingError}</div>
+                                    )}
                                     {/* Date Selection */}
                                     <div>
                                         <Label className="text-sm font-medium">Select Date</Label>
@@ -238,19 +298,25 @@ const BookingPage = ({ params }) => {
                                     {selectedDate && (
                                         <div>
                                             <Label className="text-sm font-medium">Select Time</Label>
-                                            <Select value={selectedTime} onValueChange={setSelectedTime}>
-                                                <SelectTrigger className="mt-2">
-                                                    <SelectValue placeholder="Choose a time slot" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {getAvailableSlots(selectedDate).map((slot) => (
-                                                        <SelectItem key={slot} value={slot}>
-                                                            {slot}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {getAvailableSlots(selectedDate).length === 0 && (
+                                            {loadingSlots ? (
+                                                <div className="text-gray-500 mt-2">Loading slots...</div>
+                                            ) : errorSlots ? (
+                                                <div className="text-red-600 mt-2">{errorSlots}</div>
+                                            ) : (
+                                                <Select value={selectedTime} onValueChange={setSelectedTime}>
+                                                    <SelectTrigger className="mt-2">
+                                                        <SelectValue placeholder="Choose a time slot" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {availableSlots.map((slot) => (
+                                                            <SelectItem key={slot} value={slot}>
+                                                                {slot}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                            {selectedDate && !loadingSlots && availableSlots.length === 0 && (
                                                 <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
                                                     <AlertCircle className="h-4 w-4" />
                                                     No available slots for this date
