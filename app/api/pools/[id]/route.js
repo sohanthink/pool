@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Pool from "@/models/Pool";
+import Booking from "@/models/Booking";
 
 // GET /api/pools/[id] - Get pool by ID
 export async function GET(request, context) {
@@ -14,7 +15,38 @@ export async function GET(request, context) {
       return NextResponse.json({ error: "Pool not found" }, { status: 404 });
     }
 
-    return NextResponse.json(pool);
+    // Get booking statistics for this pool
+    const bookings = await Booking.find({ poolId: id });
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter(
+      (b) => b.status === "Confirmed"
+    ).length;
+    const pendingBookings = bookings.filter(
+      (b) => b.status === "Pending"
+    ).length;
+    const cancelledBookings = bookings.filter(
+      (b) => b.status === "Cancelled"
+    ).length;
+
+    // Get recent bookings (last 10)
+    const recentBookings = await Booking.find({ poolId: id })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select(
+        "customerName customerEmail date time duration guests status createdAt"
+      );
+
+    // Enhance pool data with booking statistics
+    const enhancedPool = {
+      ...pool.toObject(),
+      totalBookings,
+      confirmedBookings,
+      pendingBookings,
+      cancelledBookings,
+      recentBookings,
+    };
+
+    return NextResponse.json(enhancedPool);
   } catch (error) {
     console.error("Error fetching pool:", error);
     return NextResponse.json(

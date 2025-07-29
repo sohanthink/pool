@@ -66,6 +66,13 @@ const roleBasedNavItems = {
             ],
         },
         {
+            title: "Pool Management",
+            icon: <Building2 className="h-4 w-4" />,
+            items: [
+                { title: "All Pools", url: "/dashboard/superadmin/pools" },
+            ],
+        },
+        {
             title: "Account Settings",
             icon: <Lock className="h-4 w-4" />,
             items: [

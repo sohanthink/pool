@@ -95,12 +95,6 @@ const AdminsPage = () => {
                     <div className="text-sm text-gray-600">
                         Total Admins: {totalAdmins}
                     </div>
-                    <Link href="/dashboard/superadmin/admins/create">
-                        <Button className="bg-blue-600 hover:bg-blue-700">
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Add Admin
-                        </Button>
-                    </Link>
                 </div>
             </div>
 
