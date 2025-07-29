@@ -48,7 +48,7 @@ export async function GET(request) {
     }
 
     const bookings = await Booking.find(query)
-      .populate("poolId", "name location price")
+      .populate("poolId", "name location")
       .sort({ date: -1, createdAt: -1 });
 
     return NextResponse.json(bookings);
@@ -77,7 +77,6 @@ export async function POST(request) {
       "date",
       "time",
       "duration",
-      "totalPrice",
     ];
     for (const field of requiredFields) {
       if (!body[field]) {
@@ -192,7 +191,7 @@ export async function POST(request) {
       time: body.time,
       duration: body.duration,
       guests: body.guests,
-      totalPrice: body.totalPrice,
+
       notes: body.notes,
       createdBy: body.createdBy || "customer",
       adminId: body.adminId,
@@ -204,13 +203,12 @@ export async function POST(request) {
     await Pool.findByIdAndUpdate(body.poolId, {
       $inc: {
         totalBookings: 1,
-        totalRevenue: body.totalPrice,
       },
     });
 
     const populatedBooking = await Booking.findById(savedBooking._id).populate(
       "poolId",
-      "name location price"
+      "name location"
     );
 
     return NextResponse.json(populatedBooking, { status: 201 });

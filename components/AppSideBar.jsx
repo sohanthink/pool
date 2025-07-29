@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield } from "lucide-react";
+import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield, Building2, Settings, BarChart3, Lock } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -36,15 +36,15 @@ const roleBasedNavItems = {
             icon: <LayoutDashboard className="h-4 w-4" />,
         },
         {
-            title: "Pool",
-            icon: <Users className="h-4 w-4" />,
+            title: "Pool Management",
+            icon: <Building2 className="h-4 w-4" />,
             items: [
                 { title: "View Pools", url: "/dashboard/admin/pool" },
                 { title: "Add Pool", url: "/dashboard/admin/pool/create" },
             ],
         },
         {
-            title: "Bookings",
+            title: "Booking Management",
             icon: <Calendar className="h-4 w-4" />,
             items: [
                 { title: "All Bookings", url: "/dashboard/admin/bookings" },
@@ -59,27 +59,17 @@ const roleBasedNavItems = {
             icon: <LayoutDashboard className="h-4 w-4" />,
         },
         {
-            title: "Admins",
+            title: "Admin Management",
             icon: <Shield className="h-4 w-4" />,
             items: [
                 { title: "All Admins", url: "/dashboard/superadmin/admins" },
-                { title: "Add Admin", url: "/dashboard/superadmin/admins/create" },
             ],
         },
         {
-            title: "Users",
-            icon: <Users className="h-4 w-4" />,
+            title: "Account Settings",
+            icon: <Lock className="h-4 w-4" />,
             items: [
-                { title: "All Users", url: "/dashboard/superadmin/users" },
-                { title: "Add User", url: "/dashboard/superadmin/users/create" },
-            ],
-        },
-        {
-            title: "Appointments",
-            icon: <Calendar className="h-4 w-4" />,
-            items: [
-                { title: "All Appointments", url: "/dashboard/superadmin/appointments" },
-                { title: "Create Appointment", url: "/dashboard/superadmin/appointments/createappointment" },
+                { title: "Change Password", url: "/dashboard/superadmin/change-password" },
             ],
         }
     ]

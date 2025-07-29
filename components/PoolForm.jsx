@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle, Loader2, X } from "lucide-react"
 import { useSession } from "next-auth/react";
 import { useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +19,6 @@ const initialState = {
     location: '',
     description: '',
     capacity: '',
-    price: '',
     amenities: '', // comma separated
     images: ['', '', '', '', ''], // up to 5 image URLs
 }
@@ -40,7 +39,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 location: initialData.location || '',
                 description: initialData.description || '',
                 capacity: initialData.capacity?.toString() || '',
-                price: initialData.price?.toString() || '',
+
                 amenities: Array.isArray(initialData.amenities) ? initialData.amenities.join(', ') : '',
                 images: Array.isArray(initialData.images) ? [...initialData.images, '', '', '', ''].slice(0, 5) : ['', '', '', '', ''],
             }
@@ -54,7 +53,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
             location: '',
             description: '',
             capacity: '',
-            price: '',
+
             amenities: '',
             images: ['', '', '', '', ''],
         }
@@ -136,6 +135,33 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
         }
     };
 
+    const handleRemoveImage = (index) => {
+        setForm((prev) => {
+            const images = [...prev.images];
+            images[index] = '';
+            return { ...prev, images };
+        });
+        setImageErrors(prev => {
+            const errs = [...prev];
+            errs[index] = null;
+            return errs;
+        });
+        setUploaded(prev => {
+            const arr = [...prev];
+            arr[index] = false;
+            return arr;
+        });
+    };
+
+    const handleClearAllImages = () => {
+        setForm((prev) => ({
+            ...prev,
+            images: ['', '', '', '', '']
+        }));
+        setImageErrors([null, null, null, null, null]);
+        setUploaded([false, false, false, false, false]);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -143,7 +169,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
         setSuccess(false);
         try {
             // Validate required fields (phone is OPTIONAL)
-            if (!form.ownerName || !form.ownerEmail || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity || !form.price) {
+            if (!form.ownerName || !form.ownerEmail || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity) {
                 setError('Please fill in all required fields.');
                 setLoading(false);
                 return;
@@ -161,7 +187,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 location: form.location,
                 size: form.poolSize,
                 capacity: Number(form.capacity),
-                price: Number(form.price),
+
                 owner,
                 amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
                 images: form.images.filter(Boolean)
@@ -191,7 +217,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                     location: '',
                     description: '',
                     capacity: '',
-                    price: '',
+
                     amenities: '',
                     images: ['', '', '', '', ''],
                 });
@@ -284,20 +310,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                                 required
                             />
                         </div>
-                        <div>
-                            <Label htmlFor="price" className="text-sm font-medium text-gray-700">
-                                Price (per hour)
-                            </Label>
-                            <Input
-                                id="price"
-                                type="number"
-                                placeholder="e.g., 150"
-                                className="mt-1"
-                                value={form.price}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
+
                     </div>
                     {/* Right Column */}
                     <div className="space-y-4">
@@ -358,16 +371,47 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                     </div>
                 </div>
                 <div className="border-t pt-6">
-                    <Label className="text-sm font-medium text-gray-700 mb-4 block">
-                        Pool Images (Drag & drop or click to upload)
-                    </Label>
+                    <div className="flex items-center justify-between mb-4">
+                        <Label className="text-sm font-medium text-gray-700">
+                            Pool Images (Drag & drop or click to upload)
+                        </Label>
+                        {form.images.some(img => img) && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleClearAllImages}
+                                className="text-red-600 hover:text-red-700"
+                            >
+                                Clear All
+                            </Button>
+                        )}
+                    </div>
                     <div className="flex items-center gap-4">
                         <div className="flex gap-4">
                             {[...Array(5)].map((_, index) => (
                                 <Card key={index} className="w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
                                     <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
                                         {form.images[index] ? (
-                                            <img src={form.images[index].startsWith('/uploads/') ? form.images[index] : `/uploads/${form.images[index].replace(/^\/+/, '')}`} alt={`Pool ${index + 1}`} className="w-full h-full object-cover rounded-lg" />
+                                            <div className="relative w-full h-full">
+                                                <img
+                                                    src={form.images[index].startsWith('/uploads/') ? form.images[index] : `/uploads/${form.images[index].replace(/^\/+/, '')}`}
+                                                    alt={`Pool ${index + 1}`}
+                                                    className="w-full h-full object-cover rounded-lg"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="absolute top-1 right-1 h-6 w-6 p-0 rounded-full"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRemoveImage(index);
+                                                    }}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
                                         ) : (
                                             <span className="text-gray-400 text-xs">Drop or click</span>
                                         )}

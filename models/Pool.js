@@ -23,11 +23,7 @@ const poolSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+
     status: {
       type: String,
       enum: ["Active", "Inactive", "Maintenance"],
@@ -67,10 +63,7 @@ const poolSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    totalRevenue: {
-      type: Number,
-      default: 0,
-    },
+
     availableSlots: {
       type: Map,
       of: [String],

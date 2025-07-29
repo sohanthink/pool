@@ -1,17 +1,12 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Calendar, DollarSign, TrendingUp, Activity, Users, Edit, Eye } from "lucide-react"
+import { Building2, Calendar, TrendingUp, Activity, Users, Edit, Eye } from "lucide-react"
 import Link from 'next/link'
-
-// Mock current user (replace with real session logic later)
-const currentUser = {
-    role: 'superadmin',
-    email: 'superadmin@example.com',
-    name: 'Super Admin'
-}
+import { useSession } from "next-auth/react";
 
 export default function SuperAdminDashboardPage() {
+    const { data: session, status } = useSession();
     const [pools, setPools] = useState([])
     const [bookings, setBookings] = useState([])
     const [admins, setAdmins] = useState([])
@@ -19,6 +14,7 @@ export default function SuperAdminDashboardPage() {
     const [error, setError] = useState('')
 
     useEffect(() => {
+        if (!session?.user?.email) return;
         async function fetchData() {
             setLoading(true)
             setError('')
@@ -48,8 +44,9 @@ export default function SuperAdminDashboardPage() {
             }
         }
         fetchData()
-    }, [])
+    }, [session?.user?.email])
 
+    if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading...</div>
     }
@@ -58,7 +55,6 @@ export default function SuperAdminDashboardPage() {
     }
 
     // Stats
-    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0)
     const totalBookings = bookings.length
     const totalPools = pools.length
     const totalAdmins = admins.length
@@ -68,7 +64,7 @@ export default function SuperAdminDashboardPage() {
         <div className="pt-6 space-y-6">
             {/* Welcome Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Welcome, {currentUser.name}!</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Welcome, {session.user.name || 'Super Admin'}!</h1>
                 <p className="text-gray-600 mt-2">Here is your superadmin dashboard.</p>
             </div>
 
@@ -113,19 +109,7 @@ export default function SuperAdminDashboardPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">${totalRevenue}</p>
-                            </div>
-                            <div className="p-3 rounded-full bg-orange-50 text-orange-600">
-                                <DollarSign className="h-6 w-6" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+
             </div>
 
             {/* Quick Actions */}
@@ -144,20 +128,6 @@ export default function SuperAdminDashboardPage() {
                                     <Users className="h-6 w-6 text-green-600 mb-2" />
                                     <p className="font-medium">Manage Admins</p>
                                     <p className="text-sm text-gray-600">View and manage pool owners</p>
-                                </button>
-                            </Link>
-                            <Link href="/dashboard/superadmin/pools">
-                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
-                                    <Building2 className="h-6 w-6 text-blue-600 mb-2" />
-                                    <p className="font-medium">Manage Pools</p>
-                                    <p className="text-sm text-gray-600">View and manage all pools</p>
-                                </button>
-                            </Link>
-                            <Link href="/dashboard/superadmin/bookings">
-                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
-                                    <Calendar className="h-6 w-6 text-purple-600 mb-2" />
-                                    <p className="font-medium">All Bookings</p>
-                                    <p className="text-sm text-gray-600">View all bookings</p>
                                 </button>
                             </Link>
                             <Link href="/dashboard/superadmin/change-password">
@@ -187,9 +157,7 @@ export default function SuperAdminDashboardPage() {
                                         <p className="font-medium text-gray-800">{pool.name}</p>
                                         <p className="text-sm text-gray-600">{pool.location}</p>
                                     </div>
-                                    <Link href={`/dashboard/superadmin/pools/${pool._id}`} className="text-blue-600 hover:underline flex items-center gap-1">
-                                        <Eye className="h-4 w-4" /> View
-                                    </Link>
+                                    <span className="text-sm text-gray-500">Free</span>
                                 </div>
                             ))}
                             {pools.length === 0 && <div className="text-gray-500 text-sm">No pools yet.</div>}
@@ -248,18 +216,7 @@ export default function SuperAdminDashboardPage() {
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-90">Total Revenue</p>
-                                <p className="text-2xl font-bold">${totalRevenue}</p>
-                            </div>
-                            <DollarSign className="h-8 w-8 opacity-80" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">

@@ -30,6 +30,7 @@ const PoolDetails = ({ params }) => {
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [deleting, setDeleting] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -67,15 +68,22 @@ const PoolDetails = ({ params }) => {
     }
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this pool and all its images?')) return;
+        if (!window.confirm('Are you sure you want to delete this pool and all its images? This action cannot be undone.')) return;
+        setDeleting(true);
         try {
             const res = await fetch(`/api/pools/${poolId}/delete-with-images`, {
                 method: 'DELETE',
             });
-            if (!res.ok) throw new Error('Failed to delete pool');
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to delete pool');
+            }
+            alert('Pool and images deleted successfully!');
             router.push('/dashboard/admin/pool');
         } catch (err) {
-            alert('Failed to delete pool.');
+            alert(`Failed to delete pool: ${err.message}`);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -113,9 +121,9 @@ const PoolDetails = ({ params }) => {
                             Edit Pool
                         </Link>
                     </Button>
-                    <Button variant="destructive" onClick={handleDelete}>
+                    <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        {deleting ? 'Deleting...' : 'Delete'}
                     </Button>
                 </div>
             </div>

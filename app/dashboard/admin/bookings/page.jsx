@@ -202,10 +202,7 @@ const BookingsPage = () => {
                                             <Clock className="h-4 w-4" />
                                             <span>{booking.duration} hours</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <DollarSign className="h-4 w-4" />
-                                            <span>${booking.totalPrice}</span>
-                                        </div>
+
                                     </div>
                                 </div>
 

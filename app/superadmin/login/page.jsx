@@ -37,11 +37,26 @@ export default function SuperadminLogin() {
         e.preventDefault();
         setLoading(true);
         setError("");
-        // Simulate sending reset email (replace with real logic)
-        setTimeout(() => {
+
+        try {
+            const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setResetSent(true);
+            } else {
+                setError(data.error || 'Failed to send reset email');
+            }
+        } catch (err) {
+            setError('Failed to send reset email');
+        } finally {
             setLoading(false);
-            setResetSent(true);
-        }, 1500);
+        }
     };
 
     return (

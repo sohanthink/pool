@@ -47,7 +47,7 @@ export async function POST(request) {
       "location",
       "size",
       "capacity",
-      "price",
+
       "owner",
     ];
     for (const field of requiredFields) {
@@ -76,7 +76,7 @@ export async function POST(request) {
       location: body.location,
       size: body.size,
       capacity: body.capacity,
-      price: body.price,
+
       owner: body.owner,
       amenities: body.amenities || [],
       images: body.images || [],

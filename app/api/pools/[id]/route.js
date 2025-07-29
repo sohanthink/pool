@@ -111,7 +111,7 @@ export async function PATCH(request, context) {
       "location",
       "size",
       "capacity",
-      "price",
+
       "owner",
       "amenities",
       "images",

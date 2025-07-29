@@ -17,7 +17,7 @@ export async function PATCH(request, { params }) {
       id,
       { status: body.status },
       { new: true }
-    ).populate("poolId", "name location price");
+    ).populate("poolId", "name location");
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
