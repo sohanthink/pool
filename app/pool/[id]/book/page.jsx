@@ -23,6 +23,7 @@ import {
     CheckCircle,
     AlertCircle
 } from "lucide-react"
+import { useSearchParams } from 'next/navigation'
 
 const BookingPage = ({ params }) => {
     // Fix params usage for Next.js 15+
@@ -33,9 +34,15 @@ const BookingPage = ({ params }) => {
     } catch {
         poolId = params.id
     }
+    const searchParams = useSearchParams()
+    const bookingToken = searchParams.get('token')
+
     const [poolData, setPoolData] = useState(null)
     const [loadingPool, setLoadingPool] = useState(true)
     const [errorPool, setErrorPool] = useState('')
+    const [linkExpiry, setLinkExpiry] = useState('')
+    const [timeRemaining, setTimeRemaining] = useState('')
+    const [isValidBookingLink, setIsValidBookingLink] = useState(true)
 
     const [selectedDate, setSelectedDate] = useState(null)
     const [selectedTime, setSelectedTime] = useState("")
@@ -66,6 +73,43 @@ const BookingPage = ({ params }) => {
                 const res = await fetch(`/api/pools/${poolId}`)
                 if (!res.ok) throw new Error('Failed to fetch pool')
                 const data = await res.json()
+
+                // If there's a booking token, validate it
+                if (bookingToken) {
+                    if (!data.isBookingLinkActive || data.bookingToken !== bookingToken) {
+                        setErrorPool('Invalid or inactive booking link')
+                        setIsValidBookingLink(false)
+                        setLoadingPool(false)
+                        return
+                    }
+
+                    // Check if booking link has expired
+                    if (data.bookingLinkExpiry && new Date() > new Date(data.bookingLinkExpiry)) {
+                        setErrorPool('This booking link has expired')
+                        setIsValidBookingLink(false)
+                        setLoadingPool(false)
+                        return
+                    }
+
+                    // Set booking link expiry information
+                    if (data.bookingLinkExpiry) {
+                        setLinkExpiry(new Date(data.bookingLinkExpiry).toLocaleString())
+
+                        // Calculate time remaining
+                        const now = new Date()
+                        const expiry = new Date(data.bookingLinkExpiry)
+                        const diff = expiry - now
+
+                        if (diff > 0) {
+                            const hours = Math.floor(diff / (1000 * 60 * 60))
+                            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+                            setTimeRemaining(`${hours}h ${minutes}m remaining`)
+                        } else {
+                            setTimeRemaining('Expired')
+                        }
+                    }
+                }
+
                 setPoolData(data)
             } catch (err) {
                 setErrorPool('Failed to load pool details')
@@ -74,7 +118,32 @@ const BookingPage = ({ params }) => {
             }
         }
         fetchPool()
-    }, [poolId])
+    }, [poolId, bookingToken])
+
+    // Update time remaining countdown
+    useEffect(() => {
+        if (!poolData?.bookingLinkExpiry) return
+
+        const updateTimeRemaining = () => {
+            const now = new Date()
+            const expiry = new Date(poolData.bookingLinkExpiry)
+            const diff = expiry - now
+
+            if (diff <= 0) {
+                setTimeRemaining('Expired')
+                return
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60))
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+            setTimeRemaining(`${hours}h ${minutes}m remaining`)
+        }
+
+        updateTimeRemaining()
+        const interval = setInterval(updateTimeRemaining, 60000) // Update every minute
+
+        return () => clearInterval(interval)
+    }, [poolData?.bookingLinkExpiry])
 
     // Fetch available slots when date changes
     useEffect(() => {
@@ -217,6 +286,19 @@ const BookingPage = ({ params }) => {
                                             </div>
                                         </div>
                                         <p className="text-gray-700">{poolData.description}</p>
+                                        {timeRemaining && (
+                                            <div className="mt-4 flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-orange-500" />
+                                                <span className="text-sm text-orange-600 font-medium">
+                                                    {timeRemaining}
+                                                </span>
+                                                {linkExpiry && (
+                                                    <span className="text-xs text-gray-500">
+                                                        (Expires: {linkExpiry})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-right">
                                         <div className="text-2xl font-bold text-blue-600">{poolData.price}</div>

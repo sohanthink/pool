@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -15,104 +15,151 @@ import {
     Building2,
     Clock,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    Mail
 } from "lucide-react"
 import Link from 'next/link'
-
-// Mock pools data
-const pools = [
-    {
-        id: 1,
-        name: "Dream Valley Pool",
-        price: 150,
-        location: "3106 Fleming Way, Richmond, USA"
-    },
-    {
-        id: 2,
-        name: "Sunset Pool",
-        price: 120,
-        location: "123 Sunset Blvd, Richmond, USA"
-    },
-    {
-        id: 3,
-        name: "Ocean View Pool",
-        price: 180,
-        location: "456 Ocean Drive, Richmond, USA"
-    }
-]
-
-// Mock availability data (in real app, this would be fetched from backend)
-const getAvailableSlots = (poolId, date) => {
-    const dateStr = date.toISOString().split('T')[0]
-
-    // Mock available slots - in real app, this would check against existing bookings
-    const allSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"]
-
-    // Mock some booked slots
-    const bookedSlots = {
-        "2024-01-15": ["12:00", "13:00"],
-        "2024-01-17": ["14:00", "15:00"],
-        "2024-01-19": ["10:00", "11:00"],
-    }
-
-    const bookedForDate = bookedSlots[dateStr] || []
-    return allSlots.filter(slot => !bookedForDate.includes(slot))
-}
+import { useSession } from "next-auth/react"
 
 const CreateBookingPage = () => {
+    const { data: session, status } = useSession();
+    const [pools, setPools] = useState([])
     const [selectedPool, setSelectedPool] = useState("")
     const [selectedDate, setSelectedDate] = useState(null)
     const [selectedTime, setSelectedTime] = useState("")
     const [duration, setDuration] = useState("2")
     const [formData, setFormData] = useState({
         customerName: "",
+        customerEmail: "",
         customerPhone: "",
+        guests: "",
         notes: ""
     })
     const [isBooking, setIsBooking] = useState(false)
     const [bookingSuccess, setBookingSuccess] = useState(false)
+    const [error, setError] = useState("")
+
+    // Availability states
+    const [availableSlots, setAvailableSlots] = useState([])
+    const [loadingSlots, setLoadingSlots] = useState(false)
+    const [errorSlots, setErrorSlots] = useState('')
+
+    // Fetch pools for this admin
+    useEffect(() => {
+        async function fetchPools() {
+            if (!session?.user?.email) return;
+
+            try {
+                const res = await fetch(`/api/pools?ownerEmail=${encodeURIComponent(session.user.email)}`)
+                if (!res.ok) throw new Error('Failed to fetch pools')
+                const data = await res.json()
+                setPools(data)
+            } catch (err) {
+                setError('Failed to load pools')
+            }
+        }
+        fetchPools()
+    }, [session?.user?.email])
+
+    // Fetch available slots when date changes
+    useEffect(() => {
+        if (!selectedDate || !selectedPool) return;
+
+        async function fetchSlots() {
+            setLoadingSlots(true);
+            setErrorSlots('');
+            try {
+                const dateStr = selectedDate.toISOString().split('T')[0];
+                const res = await fetch(`/api/pools/${selectedPool}/availability?date=${dateStr}`);
+                if (!res.ok) throw new Error('Failed to fetch availability');
+                const data = await res.json();
+                setAvailableSlots(data.availableSlots);
+            } catch (err) {
+                setErrorSlots('Failed to load available slots');
+                setAvailableSlots([]);
+            } finally {
+                setLoadingSlots(false);
+            }
+        }
+        fetchSlots();
+    }, [selectedPool, selectedDate]);
 
     // Get selected pool data
-    const poolData = pools.find(pool => pool.id.toString() === selectedPool)
-
-    // Get available time slots for selected date and pool
-    const availableSlots = selectedDate && selectedPool
-        ? getAvailableSlots(selectedPool, selectedDate)
-        : []
+    const poolData = pools.find(pool => pool._id === selectedPool)
 
     // Calculate total price
     const calculatePrice = () => {
-        if (!poolData) return 0
-        return poolData.price * parseInt(duration)
+        if (!poolData) return 0;
+        let hourlyRate = 0;
+        if (typeof poolData.price === 'string') {
+            hourlyRate = parseInt(poolData.price.replace('$', ''));
+        } else if (typeof poolData.price === 'number') {
+            hourlyRate = poolData.price;
+        }
+        return hourlyRate * parseInt(duration);
     }
 
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setError("")
 
-        if (!selectedPool || !selectedDate || !selectedTime || !formData.customerName || !formData.customerPhone) {
-            alert("Please fill in all required fields")
+        if (!selectedPool || !selectedDate || !selectedTime || !formData.customerName || !formData.customerEmail || !formData.customerPhone) {
+            setError("Please fill in all required fields")
             return
         }
 
         setIsBooking(true)
+        try {
+            const dateStr = selectedDate.toISOString().split('T')[0];
+            const res = await fetch("/api/bookings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    poolId: selectedPool,
+                    customerName: formData.customerName,
+                    customerEmail: formData.customerEmail,
+                    customerPhone: formData.customerPhone,
+                    date: dateStr,
+                    time: selectedTime,
+                    duration: parseInt(duration),
+                    totalPrice: calculatePrice(),
+                    guests: formData.guests,
+                    notes: formData.notes,
+                    createdBy: "admin",
+                })
+            });
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000))
+            if (!res.ok) {
+                const data = await res.json();
+                setError(data.error || "Failed to create booking");
+                setIsBooking(false);
+                return;
+            }
 
-        setIsBooking(false)
-        setBookingSuccess(true)
+            setIsBooking(false);
+            setBookingSuccess(true);
 
-        // Reset form
-        setSelectedPool("")
-        setSelectedDate(null)
-        setSelectedTime("")
-        setDuration("2")
-        setFormData({
-            customerName: "",
-            customerPhone: "",
-            notes: ""
-        })
+            // Reset form
+            setSelectedPool("");
+            setSelectedDate(null);
+            setSelectedTime("");
+            setDuration("2");
+            setFormData({
+                customerName: "",
+                customerEmail: "",
+                customerPhone: "",
+                guests: "",
+                notes: ""
+            });
+        } catch (err) {
+            setError("Failed to create booking. Please try again.");
+            setIsBooking(false);
+        }
+    }
+
+    if (status === 'loading' || !session?.user?.email) {
+        return <div className="p-8 text-center text-gray-500">Loading...</div>
     }
 
     if (bookingSuccess) {
@@ -170,6 +217,13 @@ const CreateBookingPage = () => {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            {error && (
+                                <div className="text-red-600 text-sm mb-2 flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {error}
+                                </div>
+                            )}
+
                             {/* Pool Selection */}
                             <div>
                                 <Label className="text-sm font-medium">Select Pool *</Label>
@@ -179,7 +233,7 @@ const CreateBookingPage = () => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {pools.map((pool) => (
-                                            <SelectItem key={pool.id} value={pool.id.toString()}>
+                                            <SelectItem key={pool._id} value={pool._id}>
                                                 <div className="flex flex-col">
                                                     <span className="font-medium">{pool.name}</span>
                                                     <span className="text-sm text-gray-500">${pool.price}/hour</span>
@@ -207,6 +261,19 @@ const CreateBookingPage = () => {
                                 </div>
 
                                 <div>
+                                    <Label htmlFor="customerEmail">Email *</Label>
+                                    <Input
+                                        id="customerEmail"
+                                        type="email"
+                                        value={formData.customerEmail}
+                                        onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
+                                        required
+                                        className="mt-1"
+                                        placeholder="Enter customer's email"
+                                    />
+                                </div>
+
+                                <div>
                                     <Label htmlFor="customerPhone">Phone Number *</Label>
                                     <Input
                                         id="customerPhone"
@@ -216,6 +283,20 @@ const CreateBookingPage = () => {
                                         required
                                         className="mt-1"
                                         placeholder="Enter customer's phone number"
+                                    />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="guests">Number of Guests</Label>
+                                    <Input
+                                        id="guests"
+                                        type="number"
+                                        min="1"
+                                        max={poolData?.capacity || 10}
+                                        value={formData.guests}
+                                        onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
+                                        className="mt-1"
+                                        placeholder="Number of guests"
                                     />
                                 </div>
 
@@ -263,7 +344,7 @@ const CreateBookingPage = () => {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={!selectedPool || !selectedDate || !selectedTime || !formData.customerName || !formData.customerPhone || isBooking}
+                                disabled={!selectedPool || !selectedDate || !selectedTime || !formData.customerName || !formData.customerEmail || !formData.customerPhone || isBooking}
                             >
                                 {isBooking ? "Creating Booking..." : "Create Booking"}
                             </Button>
@@ -300,7 +381,14 @@ const CreateBookingPage = () => {
                                 <CardTitle>Select Time</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {availableSlots.length > 0 ? (
+                                {loadingSlots ? (
+                                    <div className="text-gray-500 text-center py-4">Loading slots...</div>
+                                ) : errorSlots ? (
+                                    <div className="text-red-600 text-center py-4 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {errorSlots}
+                                    </div>
+                                ) : availableSlots.length > 0 ? (
                                     <div className="grid grid-cols-3 gap-2">
                                         {availableSlots.map((slot) => (
                                             <Button
@@ -342,6 +430,10 @@ const CreateBookingPage = () => {
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">Location</p>
                                     <p className="text-gray-800">{poolData.location}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Capacity</p>
+                                    <p className="text-gray-800">{poolData.capacity} people</p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">Price</p>

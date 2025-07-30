@@ -69,6 +69,38 @@ const poolSchema = new mongoose.Schema(
       of: [String],
       default: {},
     },
+    // Link sharing and expiry fields
+    linkExpiry: {
+      type: Date,
+      default: null,
+      required: false,
+    },
+    isLinkActive: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
+    linkToken: {
+      type: String,
+      default: null,
+      required: false,
+    },
+    // Booking link fields
+    bookingLinkExpiry: {
+      type: Date,
+      default: null,
+      required: false,
+    },
+    isBookingLinkActive: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
+    bookingToken: {
+      type: String,
+      default: null,
+      required: false,
+    },
   },
   {
     timestamps: true,
@@ -79,5 +111,7 @@ const poolSchema = new mongoose.Schema(
 poolSchema.index({ name: 1 });
 poolSchema.index({ status: 1 });
 poolSchema.index({ "owner.email": 1 });
+poolSchema.index({ linkToken: 1 });
+poolSchema.index({ bookingToken: 1 });
 
 export default mongoose.models.Pool || mongoose.model("Pool", poolSchema);

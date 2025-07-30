@@ -30,6 +30,7 @@ const BookingsPage = () => {
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
     const [poolFilter, setPoolFilter] = useState("all")
+    const [sourceFilter, setSourceFilter] = useState("all")
 
     // Move fetchBookings outside useEffect for reuse
     const fetchBookings = async () => {
@@ -39,7 +40,9 @@ const BookingsPage = () => {
             const res = await fetch(`/api/bookings?ownerEmail=${encodeURIComponent(session.user.email)}`)
             if (!res.ok) throw new Error('Failed to fetch bookings')
             const data = await res.json()
-            setBookings(data)
+            // Sort bookings by creation date (newest first)
+            const sortedBookings = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            setBookings(sortedBookings)
         } catch (err) {
             setError('Failed to load bookings')
         } finally {
@@ -64,8 +67,12 @@ const BookingsPage = () => {
 
         const matchesStatus = statusFilter === "all" || booking.status === statusFilter
         const matchesPool = poolFilter === "all" || (booking.poolId?.name || booking.poolName) === poolFilter
+        const matchesSource = sourceFilter === "all" ||
+            (sourceFilter === "shareLink" && booking.fromShareLink) ||
+            (sourceFilter === "direct" && !booking.fromShareLink && booking.createdBy !== "admin") ||
+            (sourceFilter === "adminCreated" && booking.createdBy === "admin")
 
-        return matchesSearch && matchesStatus && matchesPool
+        return matchesSearch && matchesStatus && matchesPool && matchesSource
     })
 
     // Get status badge variant
@@ -126,7 +133,7 @@ const BookingsPage = () => {
             {/* Filters */}
             <Card>
                 <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         {/* Search */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -164,6 +171,19 @@ const BookingsPage = () => {
                             </SelectContent>
                         </Select>
 
+                        {/* Source Filter */}
+                        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Filter by source" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Sources</SelectItem>
+                                <SelectItem value="shareLink">Share Link</SelectItem>
+                                <SelectItem value="direct">Direct Booking</SelectItem>
+                                <SelectItem value="adminCreated">Admin Created</SelectItem>
+                            </SelectContent>
+                        </Select>
+
                         {/* Clear Filters */}
                         <Button
                             variant="outline"
@@ -171,6 +191,7 @@ const BookingsPage = () => {
                                 setSearchTerm("")
                                 setStatusFilter("all")
                                 setPoolFilter("all")
+                                setSourceFilter("all")
                             }}
                         >
                             Clear Filters
@@ -201,6 +222,18 @@ const BookingsPage = () => {
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <Clock className="h-4 w-4" />
                                             <span>{booking.duration} hours</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm">
+                                            {booking.fromShareLink && (
+                                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">
+                                                    Share Link
+                                                </Badge>
+                                            )}
+                                            {booking.createdBy === "admin" && (
+                                                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 text-xs">
+                                                    Admin Created
+                                                </Badge>
+                                            )}
                                         </div>
 
                                     </div>

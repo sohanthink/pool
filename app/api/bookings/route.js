@@ -93,6 +93,32 @@ export async function POST(request) {
       return NextResponse.json({ error: "Pool not found" }, { status: 404 });
     }
 
+    // Validate share link expiry if booking is from share link
+    if (body.fromShareLink && pool.linkExpiry) {
+      const bookingDate = new Date(body.date);
+      const linkExpiry = new Date(pool.linkExpiry);
+
+      // Allow booking for the entire day if link expires on that day
+      // Compare just the date part (year, month, day) to allow full day booking
+      const linkExpiryDate = new Date(
+        linkExpiry.getFullYear(),
+        linkExpiry.getMonth(),
+        linkExpiry.getDate()
+      );
+      const bookingDateOnly = new Date(
+        bookingDate.getFullYear(),
+        bookingDate.getMonth(),
+        bookingDate.getDate()
+      );
+
+      if (bookingDateOnly > linkExpiryDate) {
+        return NextResponse.json(
+          { error: "Booking date is outside the share link validity period" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check for booking conflicts
     const bookingDate = new Date(body.date);
     const startTime = new Date(bookingDate);
@@ -191,10 +217,10 @@ export async function POST(request) {
       time: body.time,
       duration: body.duration,
       guests: body.guests,
-
       notes: body.notes,
       createdBy: body.createdBy || "customer",
       adminId: body.adminId,
+      fromShareLink: body.fromShareLink || false,
     });
 
     const savedBooking = await booking.save();

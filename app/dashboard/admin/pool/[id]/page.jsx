@@ -31,6 +31,11 @@ const PoolDetails = ({ params }) => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [deleting, setDeleting] = useState(false);
+    const [shareLink, setShareLink] = useState('');
+    const [linkExpiry, setLinkExpiry] = useState('');
+    const [isLinkActive, setIsLinkActive] = useState(false);
+    const [generatingLink, setGeneratingLink] = useState(false);
+    const [deactivatingLink, setDeactivatingLink] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -42,6 +47,13 @@ const PoolDetails = ({ params }) => {
                 if (!poolRes.ok) throw new Error('Pool not found')
                 const poolData = await poolRes.json()
                 setPool(poolData)
+
+                // Set share link status if available
+                if (poolData.isLinkActive && poolData.linkToken && poolData.linkExpiry) {
+                    setShareLink(`${window.location.origin}/pool/${poolId}/share/${poolData.linkToken}`);
+                    setLinkExpiry(new Date(poolData.linkExpiry).toLocaleString());
+                    setIsLinkActive(true);
+                }
 
                 // Fetch bookings for this pool
                 const bookingsRes = await fetch(`/api/bookings?poolId=${poolId}`)
@@ -87,6 +99,67 @@ const PoolDetails = ({ params }) => {
         }
     };
 
+    const handleGenerateShareLink = async () => {
+        const expiryHours = prompt('Enter link expiry time in hours (default: 24):', '24');
+        if (!expiryHours) return;
+
+        setGeneratingLink(true);
+        try {
+            const res = await fetch(`/api/pools/${poolId}/share-link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expiryHours: parseInt(expiryHours) || 24 }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to generate link');
+            }
+
+            const data = await res.json();
+            setShareLink(data.shareableUrl);
+            setLinkExpiry(new Date(data.linkExpiry).toLocaleString());
+            setIsLinkActive(true);
+            alert('Shareable link generated successfully!');
+        } catch (err) {
+            alert(`Failed to generate link: ${err.message}`);
+        } finally {
+            setGeneratingLink(false);
+        }
+    };
+
+    const handleDeactivateLink = async () => {
+        if (!window.confirm('Are you sure you want to deactivate this shareable link?')) return;
+
+        setDeactivatingLink(true);
+        try {
+            const res = await fetch(`/api/pools/${poolId}/share-link`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to deactivate link');
+            }
+
+            setShareLink('');
+            setLinkExpiry('');
+            setIsLinkActive(false);
+            alert('Shareable link deactivated successfully!');
+        } catch (err) {
+            alert(`Failed to deactivate link: ${err.message}`);
+        } finally {
+            setDeactivatingLink(false);
+        }
+    };
+
+    const copyShareLink = () => {
+        if (shareLink) {
+            navigator.clipboard.writeText(shareLink);
+            alert('Shareable link copied to clipboard!');
+        }
+    };
+
     return (
         <div className="pt-6 space-y-6">
             {/* Header */}
@@ -107,14 +180,23 @@ const PoolDetails = ({ params }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => {
-                        const bookingUrl = `${window.location.origin}/pool/${poolId}/book`
-                        navigator.clipboard.writeText(bookingUrl)
-                        alert('Booking link copied to clipboard!')
-                    }}>
-                        <LinkIcon className="h-4 w-4 mr-2" />
-                        Share Booking Link
-                    </Button>
+                    {isLinkActive ? (
+                        <>
+                            <Button variant="outline" onClick={copyShareLink} disabled={!shareLink}>
+                                <LinkIcon className="h-4 w-4 mr-2" />
+                                Copy Share Link
+                            </Button>
+                            <Button variant="destructive" onClick={handleDeactivateLink} disabled={deactivatingLink}>
+                                {deactivatingLink ? 'Deactivating...' : 'Deactivate Link'}
+                            </Button>
+                        </>
+                    ) : (
+                        <Button variant="outline" onClick={handleGenerateShareLink} disabled={generatingLink}>
+                            <LinkIcon className="h-4 w-4 mr-2" />
+                            {generatingLink ? 'Generating...' : 'Generate Share Link'}
+                        </Button>
+                    )}
+
                     <Button variant="outline" asChild>
                         <Link href={`/dashboard/admin/pool/${poolId}/edit`}>
                             <Edit className="h-4 w-4 mr-2" />
@@ -127,6 +209,39 @@ const PoolDetails = ({ params }) => {
                     </Button>
                 </div>
             </div>
+
+            {/* Share Link Status */}
+            {isLinkActive && (
+                <Card className="border-green-200 bg-green-50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-green-800">
+                            <LinkIcon className="h-5 w-5" />
+                            Active Share Link
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-green-700 border-green-300">
+                                Active
+                            </Badge>
+                            <span className="text-sm text-green-700">
+                                Expires: {linkExpiry}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={shareLink}
+                                readOnly
+                                className="flex-1 px-3 py-2 border border-green-300 rounded-md bg-white text-sm"
+                            />
+                            <Button size="sm" onClick={copyShareLink}>
+                                Copy
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Content */}
