@@ -76,6 +76,12 @@ const bookingSchema = new mongoose.Schema(
 
 // Custom validation to ensure either poolId or tennisCourtId is provided
 bookingSchema.pre("save", function (next) {
+  console.log(
+    "Pre-save validation - poolId:",
+    this.poolId,
+    "tennisCourtId:",
+    this.tennisCourtId
+  );
   if (!this.poolId && !this.tennisCourtId) {
     return next(new Error("Either poolId or tennisCourtId must be provided"));
   }
@@ -135,5 +141,9 @@ bookingSchema.virtual("endTime").get(function () {
 bookingSchema.set("toJSON", { virtuals: true });
 bookingSchema.set("toObject", { virtuals: true });
 
-export default mongoose.models.Booking ||
-  mongoose.model("Booking", bookingSchema);
+// Force model recompilation to ensure schema changes are applied
+if (mongoose.models.Booking) {
+  delete mongoose.models.Booking;
+}
+
+export default mongoose.model("Booking", bookingSchema);

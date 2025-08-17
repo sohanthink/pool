@@ -18,7 +18,8 @@ import {
     Phone,
     Mail,
     MapPin,
-    DollarSign
+    DollarSign,
+    Target
 } from "lucide-react"
 import { useSession } from "next-auth/react";
 
@@ -55,18 +56,23 @@ const BookingsPage = () => {
         fetchBookings()
     }, [session?.user?.email])
 
-    // Get unique pools for filter
-    const pools = [...new Set(bookings.map(booking => booking.poolId?.name || booking.poolName))]
+    // Get unique pools and tennis courts for filter
+    const pools = [...new Set(bookings.map(booking => booking.poolId?.name || booking.poolName).filter(Boolean))]
+    const tennisCourts = [...new Set(bookings.map(booking => booking.tennisCourtId?.name || booking.tennisCourtName).filter(Boolean))]
+    const allVenues = [...pools, ...tennisCourts]
 
     // Filter bookings
     const filteredBookings = bookings.filter(booking => {
         const matchesSearch =
             (booking.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
             (booking.customerEmail?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (booking.poolId?.name?.toLowerCase() || booking.poolName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+            (booking.poolId?.name?.toLowerCase() || booking.poolName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (booking.tennisCourtId?.name?.toLowerCase() || booking.tennisCourtName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
 
         const matchesStatus = statusFilter === "all" || booking.status === statusFilter
-        const matchesPool = poolFilter === "all" || (booking.poolId?.name || booking.poolName) === poolFilter
+        const matchesPool = poolFilter === "all" || 
+            (booking.poolId?.name || booking.poolName) === poolFilter ||
+            (booking.tennisCourtId?.name || booking.tennisCourtName) === poolFilter
         const matchesSource = sourceFilter === "all" ||
             (sourceFilter === "shareLink" && booking.fromShareLink) ||
             (sourceFilter === "direct" && !booking.fromShareLink && booking.createdBy !== "admin") ||
@@ -158,15 +164,15 @@ const BookingsPage = () => {
                             </SelectContent>
                         </Select>
 
-                        {/* Pool Filter */}
+                        {/* Venue Filter */}
                         <Select value={poolFilter} onValueChange={setPoolFilter}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Filter by pool" />
+                                <SelectValue placeholder="Filter by venue" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Pools</SelectItem>
-                                {pools.map((pool) => (
-                                    <SelectItem key={pool} value={pool}>{pool}</SelectItem>
+                                <SelectItem value="all">All Venues</SelectItem>
+                                {allVenues.map((venue) => (
+                                    <SelectItem key={venue} value={venue}>{venue}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -196,6 +202,32 @@ const BookingsPage = () => {
                         >
                             Clear Filters
                         </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Booking Summary */}
+            <Card>
+                <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                                {bookings.filter(b => b.poolId).length}
+                            </div>
+                            <div className="text-sm text-gray-600">Pool Bookings</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                                {bookings.filter(b => b.tennisCourtId).length}
+                            </div>
+                            <div className="text-sm text-gray-600">Tennis Court Bookings</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-600">
+                                {bookings.length}
+                            </div>
+                            <div className="text-sm text-gray-600">Total Bookings</div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -239,13 +271,32 @@ const BookingsPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Pool Info */}
+                                {/* Venue Info */}
                                 <div className="space-y-3">
-                                    <h4 className="font-medium text-gray-800">Pool Details</h4>
+                                    <h4 className="font-medium text-gray-800">
+                                        {booking.poolId ? "Pool Details" : "Tennis Court Details"}
+                                    </h4>
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <MapPin className="h-4 w-4" />
-                                            <span>{booking.poolId?.name || booking.poolName}</span>
+                                            {booking.poolId ? (
+                                                <MapPin className="h-4 w-4" />
+                                            ) : (
+                                                <Target className="h-4 w-4" />
+                                            )}
+                                            <span>
+                                                {booking.poolId?.name || booking.poolName || 
+                                                 booking.tennisCourtId?.name || booking.tennisCourtName}
+                                            </span>
+                                            {booking.poolId && (
+                                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">
+                                                    Pool
+                                                </Badge>
+                                            )}
+                                            {booking.tennisCourtId && (
+                                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
+                                                    Tennis Court
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <User className="h-4 w-4" />

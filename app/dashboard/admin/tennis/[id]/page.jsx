@@ -24,8 +24,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 const TennisCourtDetails = ({ params }) => {
-    const resolvedParams = React.use(params)
-    const courtId = resolvedParams.id
+    const courtId = params.id
     const [court, setCourt] = useState(null)
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)

@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }) {
                         <AppSideBar role="admin" />
                         <div className="flex-1 p-5">
                             <SidebarTrigger />
-                            {/* <TopBar /> */}
+                            <TopBar />
                             {children}
                         </div>
                     </div>

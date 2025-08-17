@@ -24,8 +24,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 const PoolDetails = ({ params }) => {
-    const resolvedParams = React.use(params)
-    const poolId = resolvedParams.id
+    const poolId = params.id
     const [pool, setPool] = useState(null)
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)

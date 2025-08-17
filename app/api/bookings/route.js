@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Pool from "@/models/Pool";
+import Tennis from "@/models/Tennis";
 
 // Utility function to convert 12-hour format to 24-hour format
 function convert12To24Hour(time12h) {
@@ -35,6 +36,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const poolId = searchParams.get("poolId");
+    const tennisCourtId = searchParams.get("tennisCourtId");
     const customerEmail = searchParams.get("customerEmail");
     const date = searchParams.get("date");
     const ownerEmail = searchParams.get("ownerEmail");
@@ -47,6 +49,10 @@ export async function GET(request) {
 
     if (poolId) {
       query.poolId = poolId;
+    }
+
+    if (tennisCourtId) {
+      query.tennisCourtId = tennisCourtId;
     }
 
     if (customerEmail) {
@@ -64,15 +70,25 @@ export async function GET(request) {
       };
     }
 
-    // If filtering by ownerEmail, find pools for that owner and filter bookings by those poolIds
+    // If filtering by ownerEmail, find pools and tennis courts for that owner and filter bookings
     if (ownerEmail) {
       const pools = await Pool.find({ "owner.email": ownerEmail }, { _id: 1 });
+      const tennisCourts = await Tennis.find(
+        { "owner.email": ownerEmail },
+        { _id: 1 }
+      );
       const poolIds = pools.map((pool) => pool._id);
-      query.poolId = { $in: poolIds };
+      const tennisCourtIds = tennisCourts.map((court) => court._id);
+
+      query.$or = [
+        { poolId: { $in: poolIds } },
+        { tennisCourtId: { $in: tennisCourtIds } },
+      ];
     }
 
     const bookings = await Booking.find(query)
       .populate("poolId", "name location")
+      .populate("tennisCourtId", "name location")
       .sort({ date: -1, createdAt: -1 });
 
     return NextResponse.json(bookings);
@@ -94,7 +110,6 @@ export async function POST(request) {
 
     // Validate required fields
     const requiredFields = [
-      "poolId",
       "customerName",
       "customerEmail",
       "customerPhone",
@@ -102,6 +117,23 @@ export async function POST(request) {
       "time",
       "duration",
     ];
+
+    // Check if either poolId or tennisCourtId is provided
+    if (!body.poolId && !body.tennisCourtId) {
+      return NextResponse.json(
+        { error: "Either poolId or tennisCourtId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Ensure only one of poolId or tennisCourtId is provided
+    if (body.poolId && body.tennisCourtId) {
+      return NextResponse.json(
+        { error: "Only one of poolId or tennisCourtId should be provided" },
+        { status: 400 }
+      );
+    }
+
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -111,23 +143,39 @@ export async function POST(request) {
       }
     }
 
-    // Check if pool exists
-    const pool = await Pool.findById(body.poolId);
-    if (!pool) {
-      return NextResponse.json({ error: "Pool not found" }, { status: 404 });
+    // Check if pool or tennis court exists and validate share link
+    let pool = null;
+    let tennisCourt = null;
+    let linkExpiry = null;
+
+    if (body.poolId) {
+      pool = await Pool.findById(body.poolId);
+      if (!pool) {
+        return NextResponse.json({ error: "Pool not found" }, { status: 404 });
+      }
+      linkExpiry = pool.linkExpiry;
+    } else if (body.tennisCourtId) {
+      tennisCourt = await Tennis.findById(body.tennisCourtId);
+      if (!tennisCourt) {
+        return NextResponse.json(
+          { error: "Tennis court not found" },
+          { status: 404 }
+        );
+      }
+      linkExpiry = tennisCourt.linkExpiry;
     }
 
     // Validate share link expiry if booking is from share link
-    if (body.fromShareLink && pool.linkExpiry) {
+    if (body.fromShareLink && linkExpiry) {
       const bookingDate = new Date(body.date);
-      const linkExpiry = new Date(pool.linkExpiry);
+      const linkExpiryDate = new Date(linkExpiry);
 
       // Allow booking for the entire day if link expires on that day
       // Compare just the date part (year, month, day) to allow full day booking
-      const linkExpiryDate = new Date(
-        linkExpiry.getFullYear(),
-        linkExpiry.getMonth(),
-        linkExpiry.getDate()
+      const linkExpiryDateOnly = new Date(
+        linkExpiryDate.getFullYear(),
+        linkExpiryDate.getMonth(),
+        linkExpiryDate.getDate()
       );
       const bookingDateOnly = new Date(
         bookingDate.getFullYear(),
@@ -135,7 +183,7 @@ export async function POST(request) {
         bookingDate.getDate()
       );
 
-      if (bookingDateOnly > linkExpiryDate) {
+      if (bookingDateOnly > linkExpiryDateOnly) {
         return NextResponse.json(
           { error: "Booking date is outside the share link validity period" },
           { status: 400 }
@@ -160,14 +208,21 @@ export async function POST(request) {
     );
 
     // For conflict checking, we need to convert existing bookings to 24-hour format for comparison
-    const conflictingBooking = await Booking.findOne({
-      poolId: body.poolId,
+    const conflictQuery = {
       date: {
         $gte: bookingDate,
         $lt: new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000),
       },
       status: { $nin: ["Cancelled"] },
-    });
+    };
+
+    if (body.poolId) {
+      conflictQuery.poolId = body.poolId;
+    } else if (body.tennisCourtId) {
+      conflictQuery.tennisCourtId = body.tennisCourtId;
+    }
+
+    const conflictingBooking = await Booking.findOne(conflictQuery);
 
     // Check for conflicts manually since we need to handle 12-hour format conversion
     if (conflictingBooking) {
@@ -192,8 +247,7 @@ export async function POST(request) {
       }
     }
 
-    const booking = new Booking({
-      poolId: body.poolId,
+    const bookingData = {
       customerName: body.customerName,
       customerEmail: body.customerEmail,
       customerPhone: body.customerPhone,
@@ -205,27 +259,55 @@ export async function POST(request) {
       createdBy: body.createdBy || "customer",
       adminId: body.adminId,
       fromShareLink: body.fromShareLink || false,
-    });
+    };
+
+    if (body.poolId) {
+      bookingData.poolId = body.poolId;
+    } else if (body.tennisCourtId) {
+      bookingData.tennisCourtId = body.tennisCourtId;
+    }
+
+    console.log("Creating booking with data:", bookingData);
+
+    const booking = new Booking(bookingData);
 
     const savedBooking = await booking.save();
 
-    // Update pool statistics
-    await Pool.findByIdAndUpdate(body.poolId, {
-      $inc: {
-        totalBookings: 1,
-      },
-    });
+    // Update pool or tennis court statistics
+    if (body.poolId) {
+      await Pool.findByIdAndUpdate(body.poolId, {
+        $inc: {
+          totalBookings: 1,
+        },
+      });
+    } else if (body.tennisCourtId) {
+      await Tennis.findByIdAndUpdate(body.tennisCourtId, {
+        $inc: {
+          totalBookings: 1,
+        },
+      });
+    }
 
-    const populatedBooking = await Booking.findById(savedBooking._id).populate(
-      "poolId",
-      "name location"
-    );
+    // Populate the booking with the appropriate reference
+    let populatedBooking;
+    if (body.poolId) {
+      populatedBooking = await Booking.findById(savedBooking._id).populate(
+        "poolId",
+        "name location"
+      );
+    } else if (body.tennisCourtId) {
+      populatedBooking = await Booking.findById(savedBooking._id).populate(
+        "tennisCourtId",
+        "name location"
+      );
+    }
 
     return NextResponse.json(populatedBooking, { status: 201 });
   } catch (error) {
     console.error("Error creating booking:", error);
 
     if (error.name === "ValidationError") {
+      console.log("Validation error details:", error.errors);
       const errors = Object.values(error.errors).map((err) => err.message);
       return NextResponse.json(
         { error: "Validation failed", details: errors },

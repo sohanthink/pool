@@ -57,6 +57,8 @@ const ShareablePoolPage = () => {
     const poolId = params.id;
     const token = params.token;
 
+
+
     useEffect(() => {
         const validateAndFetchPool = async () => {
             setLoading(true);
@@ -190,22 +192,26 @@ const ShareablePoolPage = () => {
         setIsBooking(true);
         try {
             const dateStr = selectedDate.toISOString().split('T')[0];
+            const bookingData = {
+                poolId,
+                customerName: formData.name,
+                customerEmail: formData.email,
+                customerPhone: formData.phone,
+                date: dateStr,
+                time: selectedTime,
+                duration: parseInt(duration),
+                totalPrice: calculatePrice(),
+                guests: formData.guests,
+                notes: formData.notes,
+                fromShareLink: true,
+            };
+
+
+
             const res = await fetch("/api/bookings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    poolId,
-                    customerName: formData.name,
-                    customerEmail: formData.email,
-                    customerPhone: formData.phone,
-                    date: dateStr,
-                    time: selectedTime,
-                    duration: parseInt(duration),
-                    totalPrice: calculatePrice(),
-                    guests: formData.guests,
-                    notes: formData.notes,
-                    fromShareLink: true,
-                })
+                body: JSON.stringify(bookingData)
             });
 
             if (!res.ok) {

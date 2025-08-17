@@ -79,7 +79,7 @@ export default function AdminDashboardPage() {
     return (
         <div className="pt-6 space-y-6">
             {/* Welcome Header */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Welcome back, {user?.name || 'Admin'}!</h1>
                     <p className="text-gray-600 mt-2">Email: {user?.email}</p>
@@ -90,7 +90,7 @@ export default function AdminDashboardPage() {
                 >
                     Logout
                 </button>
-            </div>
+            </div> */}
 
             {/* Stats Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
