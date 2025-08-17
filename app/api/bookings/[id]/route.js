@@ -5,7 +5,8 @@ import Booking from "@/models/Booking";
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    const { id } = params;
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
     const body = await request.json();
     if (!body.status) {
       return NextResponse.json(

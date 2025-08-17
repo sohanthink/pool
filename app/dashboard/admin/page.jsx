@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Calendar, DollarSign, TrendingUp, Activity, Clock, Home, Eye } from "lucide-react"
+import { Building2, Calendar, DollarSign, TrendingUp, Activity, Clock, Home, Eye, Target } from "lucide-react"
 import Link from 'next/link'
 
 export default function AdminDashboardPage() {
@@ -10,6 +10,7 @@ export default function AdminDashboardPage() {
     const user = session?.user;
 
     const [pools, setPools] = useState([])
+    const [tennisCourts, setTennisCourts] = useState([])
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -24,11 +25,26 @@ export default function AdminDashboardPage() {
                 const poolData = poolRes.ok ? await poolRes.json() : []
                 setPools(poolData)
 
-                // Fetch bookings for these pools
+                // Fetch tennis courts owned by this admin
+                const tennisRes = await fetch(`/api/tennis?ownerEmail=${encodeURIComponent(user?.email)}`)
+                const tennisData = tennisRes.ok ? await tennisRes.json() : []
+                setTennisCourts(tennisData)
+
+                // Fetch bookings for pools
                 const poolIds = poolData.map(p => p._id)
                 let allBookings = []
                 for (const poolId of poolIds) {
                     const bookingsRes = await fetch(`/api/bookings?poolId=${poolId}`)
+                    if (bookingsRes.ok) {
+                        const bookingsData = await bookingsRes.json()
+                        allBookings = allBookings.concat(bookingsData)
+                    }
+                }
+
+                // Fetch bookings for tennis courts
+                const tennisIds = tennisData.map(t => t._id)
+                for (const tennisId of tennisIds) {
+                    const bookingsRes = await fetch(`/api/bookings?tennisCourtId=${tennisId}`)
                     if (bookingsRes.ok) {
                         const bookingsData = await bookingsRes.json()
                         allBookings = allBookings.concat(bookingsData)
@@ -52,12 +68,13 @@ export default function AdminDashboardPage() {
     }
 
     // Stats
-    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0)
+    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.totalRevenue || 0), 0)
     const totalBookings = bookings.length
     const totalPools = pools.length
+    const totalTennisCourts = tennisCourts.length
     const pendingBookings = bookings.filter(b => b.status === 'Pending').length
     const confirmedBookings = bookings.filter(b => b.status === 'Confirmed').length
-    const avgRating = pools.length ? (pools.reduce((sum, p) => sum + (p.rating || 0), 0) / pools.length).toFixed(2) : 'N/A'
+    const avgRating = (pools.length + tennisCourts.length) ? ((pools.reduce((sum, p) => sum + (p.rating || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.rating || 0), 0)) / (pools.length + tennisCourts.length)).toFixed(2) : 'N/A'
 
     return (
         <div className="pt-6 space-y-6">
@@ -76,33 +93,52 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Stats Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Total Pools</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{totalPools}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Link href="/dashboard/admin/pool">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Total Pools</p>
+                                    <p className="text-2xl font-bold text-gray-800 mt-1">{totalPools}</p>
+                                </div>
+                                <div className="p-3 rounded-full bg-blue-50 text-blue-600">
+                                    <Building2 className="h-6 w-6" />
+                                </div>
                             </div>
-                            <div className="p-3 rounded-full bg-blue-50 text-blue-600">
-                                <Building2 className="h-6 w-6" />
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/dashboard/admin/tennis">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Tennis Courts</p>
+                                    <p className="text-2xl font-bold text-gray-800 mt-1">{totalTennisCourts}</p>
+                                </div>
+                                <div className="p-3 rounded-full bg-green-50 text-green-600">
+                                    <Target className="h-6 w-6" />
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{totalBookings}</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/dashboard/admin/bookings">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                                    <p className="text-2xl font-bold text-gray-800 mt-1">{totalBookings}</p>
+                                </div>
+                                <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+                                    <Calendar className="h-6 w-6" />
+                                </div>
                             </div>
-                            <div className="p-3 rounded-full bg-purple-50 text-purple-600">
-                                <Calendar className="h-6 w-6" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </Link>
                 <Card className="hover:shadow-lg transition-shadow">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
@@ -128,12 +164,19 @@ export default function AdminDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <Link href="/dashboard/admin/pool/create">
                                 <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
                                     <Building2 className="h-6 w-6 text-blue-600 mb-2" />
                                     <p className="font-medium">Add Pool</p>
                                     <p className="text-sm text-gray-600">Create new pool listing</p>
+                                </button>
+                            </Link>
+                            <Link href="/dashboard/admin/tennis/create">
+                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
+                                    <Target className="h-6 w-6 text-green-600 mb-2" />
+                                    <p className="font-medium">Add Tennis Court</p>
+                                    <p className="text-sm text-gray-600">Create new tennis court</p>
                                 </button>
                             </Link>
                             <Link href="/dashboard/admin/bookings">

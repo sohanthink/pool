@@ -1,25 +1,28 @@
 "use client"
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Building2, Upload, Image as ImageIcon, CheckCircle, AlertCircle, Loader2, X } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Target, Upload, Image as ImageIcon, CheckCircle, AlertCircle, Loader2, X } from "lucide-react"
 import { useSession } from "next-auth/react";
 import { useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation'
 
 const initialState = {
     ownerName: '',
     ownerEmail: '',
     ownerPhone: '',
-    poolName: '',
-    poolSize: '',
+    courtName: '',
+    surface: '',
+    type: '',
     location: '',
     description: '',
     capacity: '',
+    price: '',
     amenities: '', // comma separated
     images: ['', '', '', '', ''], // up to 5 image URLs
 }
@@ -27,7 +30,7 @@ const initialState = {
 const MAX_IMAGE_SIZE_MB = 2;
 const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
-const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
+const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [form, setForm] = useState(() => {
@@ -36,12 +39,13 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 ownerName: initialData.owner?.name || session?.user?.name || '',
                 ownerEmail: initialData.owner?.email || session?.user?.email || '',
                 ownerPhone: initialData.owner?.phone || session?.user?.phone || '',
-                poolName: initialData.name || '',
-                poolSize: initialData.size || '',
+                courtName: initialData.name || '',
+                surface: initialData.surface || '',
+                type: initialData.type || '',
                 location: initialData.location || '',
                 description: initialData.description || '',
                 capacity: initialData.capacity?.toString() || '',
-
+                price: initialData.price?.toString() || '',
                 amenities: Array.isArray(initialData.amenities) ? initialData.amenities.join(', ') : '',
                 images: Array.isArray(initialData.images) ? [...initialData.images, '', '', '', ''].slice(0, 5) : ['', '', '', '', ''],
             }
@@ -50,12 +54,13 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
             ownerName: session?.user?.name || '',
             ownerEmail: session?.user?.email || '',
             ownerPhone: session?.user?.phone || '',
-            poolName: '',
-            poolSize: '',
+            courtName: '',
+            surface: '',
+            type: '',
             location: '',
             description: '',
             capacity: '',
-
+            price: '',
             amenities: '',
             images: ['', '', '', '', ''],
         }
@@ -83,6 +88,10 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
     const handleChange = (e) => {
         const { id, value } = e.target
         setForm((prev) => ({ ...prev, [id]: value }))
+    }
+
+    const handleSelectChange = (field, value) => {
+        setForm((prev) => ({ ...prev, [field]: value }))
     }
 
     const handleImageChange = (index, value) => {
@@ -170,8 +179,8 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
         setError('');
         setSuccess(false);
         try {
-            // Validate required fields (phone is OPTIONAL)
-            if (!form.ownerName || !form.ownerEmail || !form.poolName || !form.poolSize || !form.location || !form.description || !form.capacity) {
+            // Validate required fields
+            if (!form.ownerName || !form.ownerEmail || !form.courtName || !form.surface || !form.type || !form.location || !form.description || !form.capacity || !form.price) {
                 setError('Please fill in all required fields.');
                 setLoading(false);
                 return;
@@ -184,12 +193,13 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 owner.phone = form.ownerPhone;
             }
             const payload = {
-                name: form.poolName,
+                name: form.courtName,
                 description: form.description,
                 location: form.location,
-                size: form.poolSize,
+                surface: form.surface,
+                type: form.type,
                 capacity: Number(form.capacity),
-
+                price: Number(form.price),
                 owner,
                 amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
                 images: form.images.filter(Boolean)
@@ -197,19 +207,19 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
             if (onSubmit) {
                 await onSubmit(payload);
                 setSuccess(true);
-                // Redirect to pool listing page after successful creation
+                // Redirect to tennis listing page after successful creation
                 setTimeout(() => {
-                    router.push('/dashboard/admin/pool');
+                    router.push('/dashboard/admin/tennis');
                 }, 1000);
             } else {
-                const res = await fetch('/api/pools', {
+                const res = await fetch('/api/tennis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (!res.ok) {
                     const data = await res.json();
-                    setError(data.error || 'Failed to create pool');
+                    setError(data.error || 'Failed to create tennis court');
                     setLoading(false);
                     return;
                 }
@@ -218,18 +228,19 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                     ownerName: session?.user?.name || '',
                     ownerEmail: session?.user?.email || '',
                     ownerPhone: session?.user?.phone || '',
-                    poolName: '',
-                    poolSize: '',
+                    courtName: '',
+                    surface: '',
+                    type: '',
                     location: '',
                     description: '',
                     capacity: '',
-
+                    price: '',
                     amenities: '',
                     images: ['', '', '', '', ''],
                 });
-                // Redirect to pool listing page after successful creation
+                // Redirect to tennis listing page after successful creation
                 setTimeout(() => {
-                    router.push('/dashboard/admin/pool');
+                    router.push('/dashboard/admin/tennis');
                 }, 1000);
             }
         } catch (err) {
@@ -242,8 +253,8 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
     return (
         <div className="max-w-4xl pt-6">
             <div className="flex items-center gap-2 mb-6">
-                <Building2 className="h-5 w-5 text-blue-600" />
-                <h1 className="text-2xl font-semibold text-gray-800">Add your pool details:</h1>
+                <Target className="h-5 w-5 text-green-600" />
+                <h1 className="text-2xl font-semibold text-gray-800">Add your tennis court details:</h1>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -293,47 +304,78 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                             />
                         </div>
                         <div>
-                            <Label htmlFor="poolSize" className="text-sm font-medium text-gray-700">
-                                Pool Size
+                            <Label htmlFor="surface" className="text-sm font-medium text-gray-700">
+                                Court Surface *
                             </Label>
-                            <Input
-                                id="poolSize"
-                                type="text"
-                                placeholder="e.g., 20x40 feet"
-                                className="mt-1"
-                                value={form.poolSize}
-                                onChange={handleChange}
-                                required
-                            />
+                            <Select value={form.surface} onValueChange={(value) => handleSelectChange('surface', value)}>
+                                <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select surface type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Hard Court">Hard Court</SelectItem>
+                                    <SelectItem value="Clay Court">Clay Court</SelectItem>
+                                    <SelectItem value="Grass Court">Grass Court</SelectItem>
+                                    <SelectItem value="Carpet Court">Carpet Court</SelectItem>
+                                    <SelectItem value="Artificial Grass">Artificial Grass</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="type" className="text-sm font-medium text-gray-700">
+                                Court Type *
+                            </Label>
+                            <Select value={form.type} onValueChange={(value) => handleSelectChange('type', value)}>
+                                <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select court type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Indoor">Indoor</SelectItem>
+                                    <SelectItem value="Outdoor">Outdoor</SelectItem>
+                                    <SelectItem value="Covered">Covered</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label htmlFor="capacity" className="text-sm font-medium text-gray-700">
-                                Capacity
+                                Capacity (players)
                             </Label>
                             <Input
                                 id="capacity"
                                 type="number"
-                                placeholder="e.g., 20"
+                                placeholder="e.g., 4"
                                 className="mt-1"
                                 value={form.capacity}
                                 onChange={handleChange}
                                 required
                             />
                         </div>
-
+                        <div>
+                            <Label htmlFor="price" className="text-sm font-medium text-gray-700">
+                                Price per Hour ($)
+                            </Label>
+                            <Input
+                                id="price"
+                                type="number"
+                                placeholder="e.g., 50"
+                                className="mt-1"
+                                value={form.price}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
                     </div>
                     {/* Right Column */}
                     <div className="space-y-4">
                         <div>
-                            <Label htmlFor="poolName" className="text-sm font-medium text-gray-700">
-                                Pool Name
+                            <Label htmlFor="courtName" className="text-sm font-medium text-gray-700">
+                                Court Name
                             </Label>
                             <Input
-                                id="poolName"
+                                id="courtName"
                                 type="text"
-                                placeholder="Enter pool name"
+                                placeholder="Enter court name"
                                 className="mt-1"
-                                value={form.poolName}
+                                value={form.courtName}
                                 onChange={handleChange}
                                 required
                             />
@@ -354,11 +396,11 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                         </div>
                         <div>
                             <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                                Pool Description
+                                Court Description
                             </Label>
                             <Textarea
                                 id="description"
-                                placeholder="Describe your pool..."
+                                placeholder="Describe your tennis court..."
                                 className="mt-1 min-h-[100px]"
                                 value={form.description}
                                 onChange={handleChange}
@@ -372,7 +414,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                             <Input
                                 id="amenities"
                                 type="text"
-                                placeholder="e.g., Diving Board, Heating, Parking"
+                                placeholder="e.g., Lighting, Net, Ball Machine, Pro Shop"
                                 className="mt-1"
                                 value={form.amenities}
                                 onChange={handleChange}
@@ -383,7 +425,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 <div className="border-t pt-6">
                     <div className="flex items-center justify-between mb-4">
                         <Label className="text-sm font-medium text-gray-700">
-                            Pool Images (Drag & drop or click to upload)
+                            Court Images (Drag & drop or click to upload)
                         </Label>
                         {form.images.some(img => img) && (
                             <Button
@@ -406,7 +448,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                                             <div className="relative w-full h-full">
                                                 <img
                                                     src={form.images[index].startsWith('/uploads/') ? form.images[index] : `/uploads/${form.images[index].replace(/^\/+/, '')}`}
-                                                    alt={`Pool ${index + 1}`}
+                                                    alt={`Court ${index + 1}`}
                                                     className="w-full h-full object-cover rounded-lg"
                                                 />
                                                 <Button
@@ -427,7 +469,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                                         )}
                                         {uploading[index] && (
                                             <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
-                                                <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                                                <Loader2 className="animate-spin h-8 w-8 text-green-500" />
                                             </div>
                                         )}
                                         {uploaded[index] && !uploading[index] && (
@@ -469,7 +511,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
                 {success && (
                     <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded px-4 py-2">
                         <CheckCircle className="h-4 w-4" />
-                        <span>Pool created successfully!</span>
+                        <span>Tennis court created successfully!</span>
                     </div>
                 )}
                 <div className="flex justify-end pt-4">
@@ -482,4 +524,4 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
     )
 }
 
-export default PoolForm 
+export default TennisForm

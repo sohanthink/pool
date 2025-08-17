@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-    Building2,
+    Target,
     MapPin,
     Users,
     DollarSign,
@@ -25,15 +25,15 @@ import {
 } from "lucide-react"
 import { useSearchParams, useParams } from 'next/navigation'
 
-const BookingPage = () => {
+const TennisBookingPage = () => {
     const params = useParams()
-    const poolId = params.id
+    const courtId = params.id
     const searchParams = useSearchParams()
     const bookingToken = searchParams.get('token')
 
-    const [poolData, setPoolData] = useState(null)
-    const [loadingPool, setLoadingPool] = useState(true)
-    const [errorPool, setErrorPool] = useState('')
+    const [courtData, setCourtData] = useState(null)
+    const [loadingCourt, setLoadingCourt] = useState(true)
+    const [errorCourt, setErrorCourt] = useState('')
     const [linkExpiry, setLinkExpiry] = useState('')
     const [timeRemaining, setTimeRemaining] = useState('')
     const [isValidBookingLink, setIsValidBookingLink] = useState(true)
@@ -45,7 +45,7 @@ const BookingPage = () => {
         name: "",
         email: "",
         phone: "",
-        guests: "",
+        players: "",
         notes: ""
     })
     const [isBooking, setIsBooking] = useState(false)
@@ -58,30 +58,30 @@ const BookingPage = () => {
     const [loadingSlots, setLoadingSlots] = useState(false)
     const [errorSlots, setErrorSlots] = useState('')
 
-    // Fetch pool details
+    // Fetch court details
     useEffect(() => {
-        async function fetchPool() {
-            setLoadingPool(true)
-            setErrorPool('')
+        async function fetchCourt() {
+            setLoadingCourt(true)
+            setErrorCourt('')
             try {
-                const res = await fetch(`/api/pools/${poolId}`)
-                if (!res.ok) throw new Error('Failed to fetch pool')
+                const res = await fetch(`/api/tennis/${courtId}`)
+                if (!res.ok) throw new Error('Failed to fetch tennis court')
                 const data = await res.json()
 
                 // If there's a booking token, validate it
                 if (bookingToken) {
                     if (!data.isBookingLinkActive || data.bookingToken !== bookingToken) {
-                        setErrorPool('Invalid or inactive booking link')
+                        setErrorCourt('Invalid or inactive booking link')
                         setIsValidBookingLink(false)
-                        setLoadingPool(false)
+                        setLoadingCourt(false)
                         return
                     }
 
                     // Check if booking link has expired
                     if (data.bookingLinkExpiry && new Date() > new Date(data.bookingLinkExpiry)) {
-                        setErrorPool('This booking link has expired')
+                        setErrorCourt('This booking link has expired')
                         setIsValidBookingLink(false)
-                        setLoadingPool(false)
+                        setLoadingCourt(false)
                         return
                     }
 
@@ -104,23 +104,23 @@ const BookingPage = () => {
                     }
                 }
 
-                setPoolData(data)
+                setCourtData(data)
             } catch (err) {
-                setErrorPool('Failed to load pool details')
+                setErrorCourt('Failed to load tennis court details')
             } finally {
-                setLoadingPool(false)
+                setLoadingCourt(false)
             }
         }
-        fetchPool()
-    }, [poolId, bookingToken])
+        fetchCourt()
+    }, [courtId, bookingToken])
 
     // Update time remaining countdown
     useEffect(() => {
-        if (!poolData?.bookingLinkExpiry) return
+        if (!courtData?.bookingLinkExpiry) return
 
         const updateTimeRemaining = () => {
             const now = new Date()
-            const expiry = new Date(poolData.bookingLinkExpiry)
+            const expiry = new Date(courtData.bookingLinkExpiry)
             const diff = expiry - now
 
             if (diff <= 0) {
@@ -137,7 +137,7 @@ const BookingPage = () => {
         const interval = setInterval(updateTimeRemaining, 60000) // Update every minute
 
         return () => clearInterval(interval)
-    }, [poolData?.bookingLinkExpiry])
+    }, [courtData?.bookingLinkExpiry])
 
     // Fetch available slots when date changes
     useEffect(() => {
@@ -147,7 +147,7 @@ const BookingPage = () => {
             setErrorSlots('')
             try {
                 const dateStr = selectedDate.toISOString().split('T')[0]
-                const res = await fetch(`/api/pools/${poolId}/availability?date=${dateStr}`)
+                const res = await fetch(`/api/tennis/${courtId}/availability?date=${dateStr}`)
                 if (!res.ok) throw new Error('Failed to fetch availability')
                 const data = await res.json()
                 setAvailableSlots(data.availableSlots)
@@ -161,16 +161,16 @@ const BookingPage = () => {
             }
         }
         fetchSlots()
-    }, [poolId, selectedDate])
+    }, [courtId, selectedDate])
 
     // Fix calculatePrice to handle both string and number price types
     const calculatePrice = () => {
-        if (!poolData) return 0
+        if (!courtData) return 0
         let hourlyRate = 0
-        if (typeof poolData.price === 'string') {
-            hourlyRate = parseInt(poolData.price.replace('$', ''))
-        } else if (typeof poolData.price === 'number') {
-            hourlyRate = poolData.price
+        if (typeof courtData.price === 'string') {
+            hourlyRate = parseInt(courtData.price.replace('$', ''))
+        } else if (typeof courtData.price === 'number') {
+            hourlyRate = courtData.price
         }
         return hourlyRate * parseInt(duration)
     }
@@ -194,7 +194,7 @@ const BookingPage = () => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    poolId,
+                    tennisCourtId: courtId,
                     customerName: formData.name,
                     customerEmail: formData.email,
                     customerPhone: formData.phone,
@@ -202,7 +202,7 @@ const BookingPage = () => {
                     time: selectedTime,
                     duration: parseInt(duration),
                     totalPrice: calculatePrice(),
-                    guests: formData.guests,
+                    guests: formData.players,
                     notes: formData.notes,
                 })
             })
@@ -222,7 +222,7 @@ const BookingPage = () => {
                 name: "",
                 email: "",
                 phone: "",
-                guests: "",
+                players: "",
                 notes: ""
             })
         } catch (err) {
@@ -231,9 +231,9 @@ const BookingPage = () => {
         }
     }
 
-    if (loadingPool) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading pool details...</div>
-    if (errorPool) return <div className="min-h-screen flex items-center justify-center text-red-600">{errorPool}</div>
-    if (!poolData) return null
+    if (loadingCourt) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading tennis court details...</div>
+    if (errorCourt) return <div className="min-h-screen flex items-center justify-center text-red-600">{errorCourt}</div>
+    if (!courtData) return null
 
     if (bookingSuccess) {
         return (
@@ -243,7 +243,7 @@ const BookingPage = () => {
                         <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Booking Confirmed!</h2>
                         <p className="text-gray-600 mb-6">
-                            Your pool booking has been successfully confirmed. You will receive a confirmation email shortly.
+                            Your tennis court booking has been successfully confirmed. You will receive a confirmation email shortly.
                         </p>
                         <Button
                             onClick={() => setBookingSuccess(false)}
@@ -261,25 +261,25 @@ const BookingPage = () => {
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-6xl mx-auto p-4 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Pool Information */}
+                    {/* Court Information */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Pool Header */}
+                        {/* Court Header */}
                         <Card>
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h1 className="text-3xl font-bold text-gray-800 mb-2">{poolData.name}</h1>
+                                        <h1 className="text-3xl font-bold text-gray-800 mb-2">{courtData.name}</h1>
                                         <div className="flex items-center gap-4 text-gray-600 mb-4">
                                             <div className="flex items-center gap-1">
                                                 <MapPin className="h-4 w-4" />
-                                                <span>{poolData.location}</span>
+                                                <span>{courtData.location}</span>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                                <span>{poolData.rating}</span>
+                                                <span>{courtData.rating}</span>
                                             </div>
                                         </div>
-                                        <p className="text-gray-700">{poolData.description}</p>
+                                        <p className="text-gray-700">{courtData.description}</p>
                                         {timeRemaining && (
                                             <div className="mt-4 flex items-center gap-2">
                                                 <Clock className="h-4 w-4 text-orange-500" />
@@ -295,30 +295,49 @@ const BookingPage = () => {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-2xl font-bold text-blue-600">{poolData.price}</div>
+                                        <div className="text-2xl font-bold text-green-600">{courtData.price}</div>
                                         <div className="text-sm text-gray-600">per hour</div>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* Pool Images */}
+                        {/* Court Images */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Pool Photos</CardTitle>
+                                <CardTitle>Court Photos</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-3 gap-4">
-                                    {poolData.images.map((image, index) => (
-                                        <div key={index} className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg relative">
+                                    {courtData.images.map((image, index) => (
+                                        <div key={index} className="aspect-video bg-gradient-to-br from-green-400 to-green-600 rounded-lg relative">
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="text-white text-center">
-                                                    <Building2 className="h-8 w-8 mx-auto mb-1 opacity-80" />
+                                                    <Target className="h-8 w-8 mx-auto mb-1 opacity-80" />
                                                     <p className="text-xs opacity-80">Photo {index + 1}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Court Details */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Court Details</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <Target className="h-4 w-4 text-gray-500" />
+                                        <span className="text-sm text-gray-600">Surface: {courtData.surface}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-gray-500" />
+                                        <span className="text-sm text-gray-600">Type: {courtData.type}</span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -330,7 +349,7 @@ const BookingPage = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="flex flex-wrap gap-2">
-                                    {poolData.amenities.map((amenity, index) => (
+                                    {courtData.amenities.map((amenity, index) => (
                                         <Badge key={index} variant="outline">
                                             {amenity}
                                         </Badge>
@@ -346,7 +365,7 @@ const BookingPage = () => {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <CalendarIcon className="h-5 w-5" />
-                                    Book This Pool
+                                    Book This Court
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -419,10 +438,10 @@ const BookingPage = () => {
 
                                     {/* Price Display */}
                                     {selectedDate && selectedTime && (
-                                        <div className="bg-blue-50 p-4 rounded-lg">
+                                        <div className="bg-green-50 p-4 rounded-lg">
                                             <div className="flex justify-between items-center">
                                                 <span className="font-medium">Total Price:</span>
-                                                <span className="text-xl font-bold text-blue-600">
+                                                <span className="text-xl font-bold text-green-600">
                                                     ${calculatePrice()}
                                                 </span>
                                             </div>
@@ -469,14 +488,14 @@ const BookingPage = () => {
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="guests">Number of Guests</Label>
+                                            <Label htmlFor="players">Number of Players</Label>
                                             <Input
-                                                id="guests"
+                                                id="players"
                                                 type="number"
                                                 min="1"
-                                                max={poolData.capacity}
-                                                value={formData.guests}
-                                                onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
+                                                max="4"
+                                                value={formData.players}
+                                                onChange={(e) => setFormData({ ...formData, players: e.target.value })}
                                                 className="mt-1"
                                             />
                                         </div>
@@ -511,4 +530,4 @@ const BookingPage = () => {
     )
 }
 
-export default BookingPage 
+export default TennisBookingPage

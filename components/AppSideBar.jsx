@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield, Building2, Settings, BarChart3, Lock } from "lucide-react";
+import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield, Building2, Settings, BarChart3, Lock, Target } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -44,6 +44,14 @@ const roleBasedNavItems = {
             ],
         },
         {
+            title: "Tennis Court Management",
+            icon: <Target className="h-4 w-4" />,
+            items: [
+                { title: "View Tennis Courts", url: "/dashboard/admin/tennis" },
+                { title: "Add Tennis Court", url: "/dashboard/admin/tennis/create" },
+            ],
+        },
+        {
             title: "Booking Management",
             icon: <Calendar className="h-4 w-4" />,
             items: [
@@ -70,6 +78,13 @@ const roleBasedNavItems = {
             icon: <Building2 className="h-4 w-4" />,
             items: [
                 { title: "All Pools", url: "/dashboard/superadmin/pools" },
+            ],
+        },
+        {
+            title: "Tennis Court Management",
+            icon: <Target className="h-4 w-4" />,
+            items: [
+                { title: "All Tennis Courts", url: "/dashboard/superadmin/tennis" },
             ],
         },
         {

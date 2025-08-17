@@ -3,6 +3,30 @@ import dbConnect from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Pool from "@/models/Pool";
 
+// Utility function to convert 12-hour format to 24-hour format
+function convert12To24Hour(time12h) {
+  const [time, period] = time12h.split(" ");
+  let [hours, minutes] = time.split(":");
+  hours = parseInt(hours);
+
+  if (period === "PM" && hours !== 12) {
+    hours += 12;
+  } else if (period === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  return `${hours.toString().padStart(2, "0")}:${minutes}`;
+}
+
+// Utility function to convert 24-hour format to 12-hour format
+function convert24To12Hour(time24h) {
+  const [hours, minutes] = time24h.split(":");
+  const hour = parseInt(hours);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${minutes} ${period}`;
+}
+
 // GET /api/bookings - Get all bookings
 export async function GET(request) {
   try {
@@ -121,10 +145,13 @@ export async function POST(request) {
 
     // Check for booking conflicts
     const bookingDate = new Date(body.date);
+
+    // Convert 12-hour format to 24-hour format for processing
+    const time24h = convert12To24Hour(body.time);
     const startTime = new Date(bookingDate);
     startTime.setHours(
-      parseInt(body.time.split(":")[0]),
-      parseInt(body.time.split(":")[1]),
+      parseInt(time24h.split(":")[0]),
+      parseInt(time24h.split(":")[1]),
       0
     );
 
@@ -132,6 +159,7 @@ export async function POST(request) {
       startTime.getTime() + body.duration * 60 * 60 * 1000
     );
 
+    // For conflict checking, we need to convert existing bookings to 24-hour format for comparison
     const conflictingBooking = await Booking.findOne({
       poolId: body.poolId,
       date: {
@@ -139,73 +167,29 @@ export async function POST(request) {
         $lt: new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000),
       },
       status: { $nin: ["Cancelled"] },
-      $or: [
-        {
-          time: { $lt: endTime.toTimeString().slice(0, 5) },
-          $expr: {
-            $gt: [
-              {
-                $add: [
-                  {
-                    $multiply: [{ $toInt: { $substr: ["$time", 0, 2] } }, 3600],
-                  },
-                  { $multiply: [{ $toInt: { $substr: ["$time", 3, 2] } }, 60] },
-                  { $multiply: ["$duration", 3600] },
-                ],
-              },
-              {
-                $add: [
-                  {
-                    $multiply: [
-                      { $toInt: { $substr: [body.time, 0, 2] } },
-                      3600,
-                    ],
-                  },
-                  {
-                    $multiply: [{ $toInt: { $substr: [body.time, 3, 2] } }, 60],
-                  },
-                ],
-              },
-            ],
-          },
-        },
-        {
-          time: { $gte: body.time },
-          $expr: {
-            $lt: [
-              {
-                $add: [
-                  {
-                    $multiply: [{ $toInt: { $substr: ["$time", 0, 2] } }, 3600],
-                  },
-                  { $multiply: [{ $toInt: { $substr: ["$time", 3, 2] } }, 60] },
-                ],
-              },
-              {
-                $add: [
-                  {
-                    $multiply: [
-                      { $toInt: { $substr: [body.time, 0, 2] } },
-                      3600,
-                    ],
-                  },
-                  {
-                    $multiply: [{ $toInt: { $substr: [body.time, 3, 2] } }, 60],
-                  },
-                  { $multiply: [body.duration, 3600] },
-                ],
-              },
-            ],
-          },
-        },
-      ],
     });
 
+    // Check for conflicts manually since we need to handle 12-hour format conversion
     if (conflictingBooking) {
-      return NextResponse.json(
-        { error: "Time slot is already booked" },
-        { status: 409 }
-      );
+      const existingTime24h = convert12To24Hour(conflictingBooking.time);
+      const newTime24h = convert12To24Hour(body.time);
+
+      const existingStart =
+        parseInt(existingTime24h.split(":")[0]) * 60 +
+        parseInt(existingTime24h.split(":")[1]);
+      const existingEnd = existingStart + conflictingBooking.duration * 60;
+      const newStart =
+        parseInt(newTime24h.split(":")[0]) * 60 +
+        parseInt(newTime24h.split(":")[1]);
+      const newEnd = newStart + body.duration * 60;
+
+      // Check if there's an overlap
+      if (newStart < existingEnd && newEnd > existingStart) {
+        return NextResponse.json(
+          { error: "Time slot is already booked" },
+          { status: 409 }
+        );
+      }
     }
 
     const booking = new Booking({

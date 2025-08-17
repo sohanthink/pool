@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Pool from "@/models/Pool";
+import Tennis from "@/models/Tennis";
 import Booking from "@/models/Booking";
 
-// GET /api/pools/[id]/availability - Get available time slots
+// GET /api/tennis/[id]/availability - Get available time slots
 export async function GET(request, { params }) {
   try {
     await dbConnect();
@@ -20,12 +20,15 @@ export async function GET(request, { params }) {
 
     // Fix params usage for Next.js 15+
     const resolvedParams = await params;
-    const poolId = resolvedParams.id;
+    const tennisCourtId = resolvedParams.id;
 
-    // Check if pool exists
-    const pool = await Pool.findById(poolId);
-    if (!pool) {
-      return NextResponse.json({ error: "Pool not found" }, { status: 404 });
+    // Check if tennis court exists
+    const tennisCourt = await Tennis.findById(tennisCourtId);
+    if (!tennisCourt) {
+      return NextResponse.json(
+        { error: "Tennis court not found" },
+        { status: 404 }
+      );
     }
 
     // Get all time slots (9 AM to 6 PM) in 12-hour format
@@ -48,7 +51,7 @@ export async function GET(request, { params }) {
     nextDay.setDate(nextDay.getDate() + 1);
 
     const bookedBookings = await Booking.find({
-      poolId: poolId,
+      tennisCourtId: tennisCourtId,
       date: {
         $gte: bookingDate,
         $lt: nextDay,
@@ -65,7 +68,7 @@ export async function GET(request, { params }) {
     );
 
     return NextResponse.json({
-      poolId: poolId,
+      tennisCourtId: tennisCourtId,
       date: date,
       availableSlots,
       bookedSlots,
