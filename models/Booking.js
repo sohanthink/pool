@@ -12,6 +12,11 @@ const bookingSchema = new mongoose.Schema(
       ref: "Tennis",
       required: false,
     },
+    pickleballCourtId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Pickleball",
+      required: false,
+    },
     customerName: {
       type: String,
       required: true,
@@ -74,19 +79,29 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Custom validation to ensure either poolId or tennisCourtId is provided
+// Custom validation to ensure either poolId, tennisCourtId, or pickleballCourtId is provided
 bookingSchema.pre("save", function (next) {
   console.log(
     "Pre-save validation - poolId:",
     this.poolId,
     "tennisCourtId:",
-    this.tennisCourtId
+    this.tennisCourtId,
+    "pickleballCourtId:",
+    this.pickleballCourtId
   );
-  if (!this.poolId && !this.tennisCourtId) {
-    return next(new Error("Either poolId or tennisCourtId must be provided"));
+  if (!this.poolId && !this.tennisCourtId && !this.pickleballCourtId) {
+    return next(
+      new Error(
+        "Either poolId, tennisCourtId, or pickleballCourtId must be provided"
+      )
+    );
   }
-  if (this.poolId && this.tennisCourtId) {
-    return next(new Error("Cannot have both poolId and tennisCourtId"));
+  if (
+    (this.poolId && this.tennisCourtId) ||
+    (this.poolId && this.pickleballCourtId) ||
+    (this.tennisCourtId && this.pickleballCourtId)
+  ) {
+    return next(new Error("Cannot have multiple venue types"));
   }
   next();
 });
@@ -94,6 +109,7 @@ bookingSchema.pre("save", function (next) {
 // Index for better query performance
 bookingSchema.index({ poolId: 1 });
 bookingSchema.index({ tennisCourtId: 1 });
+bookingSchema.index({ pickleballCourtId: 1 });
 bookingSchema.index({ date: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ customerEmail: 1 });

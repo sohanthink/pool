@@ -3,6 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Pool from "@/models/Pool";
 import Tennis from "@/models/Tennis";
+import Pickleball from "@/models/Pickleball";
 
 // Utility function to convert 12-hour format to 24-hour format
 function convert12To24Hour(time12h) {
@@ -37,6 +38,7 @@ export async function GET(request) {
     const status = searchParams.get("status");
     const poolId = searchParams.get("poolId");
     const tennisCourtId = searchParams.get("tennisCourtId");
+    const pickleballCourtId = searchParams.get("pickleballCourtId");
     const customerEmail = searchParams.get("customerEmail");
     const date = searchParams.get("date");
     const ownerEmail = searchParams.get("ownerEmail");
@@ -55,6 +57,10 @@ export async function GET(request) {
       query.tennisCourtId = tennisCourtId;
     }
 
+    if (pickleballCourtId) {
+      query.pickleballCourtId = pickleballCourtId;
+    }
+
     if (customerEmail) {
       query.customerEmail = customerEmail;
     }
@@ -70,25 +76,32 @@ export async function GET(request) {
       };
     }
 
-    // If filtering by ownerEmail, find pools and tennis courts for that owner and filter bookings
+    // If filtering by ownerEmail, find pools, tennis courts, and pickleball courts for that owner and filter bookings
     if (ownerEmail) {
       const pools = await Pool.find({ "owner.email": ownerEmail }, { _id: 1 });
       const tennisCourts = await Tennis.find(
         { "owner.email": ownerEmail },
         { _id: 1 }
       );
+      const pickleballCourts = await Pickleball.find(
+        { "owner.email": ownerEmail },
+        { _id: 1 }
+      );
       const poolIds = pools.map((pool) => pool._id);
       const tennisCourtIds = tennisCourts.map((court) => court._id);
+      const pickleballCourtIds = pickleballCourts.map((court) => court._id);
 
       query.$or = [
         { poolId: { $in: poolIds } },
         { tennisCourtId: { $in: tennisCourtIds } },
+        { pickleballCourtId: { $in: pickleballCourtIds } },
       ];
     }
 
     const bookings = await Booking.find(query)
       .populate("poolId", "name location")
       .populate("tennisCourtId", "name location")
+      .populate("pickleballCourtId", "name location")
       .sort({ date: -1, createdAt: -1 });
 
     return NextResponse.json(bookings);
@@ -118,18 +131,26 @@ export async function POST(request) {
       "duration",
     ];
 
-    // Check if either poolId or tennisCourtId is provided
-    if (!body.poolId && !body.tennisCourtId) {
+    // Check if either poolId, tennisCourtId, or pickleballCourtId is provided
+    if (!body.poolId && !body.tennisCourtId && !body.pickleballCourtId) {
       return NextResponse.json(
-        { error: "Either poolId or tennisCourtId is required" },
+        {
+          error:
+            "Either poolId, tennisCourtId, or pickleballCourtId is required",
+        },
         { status: 400 }
       );
     }
 
-    // Ensure only one of poolId or tennisCourtId is provided
-    if (body.poolId && body.tennisCourtId) {
+    // Ensure only one venue type is provided
+    const venueCount = [
+      body.poolId,
+      body.tennisCourtId,
+      body.pickleballCourtId,
+    ].filter(Boolean).length;
+    if (venueCount > 1) {
       return NextResponse.json(
-        { error: "Only one of poolId or tennisCourtId should be provided" },
+        { error: "Only one venue type should be provided" },
         { status: 400 }
       );
     }
@@ -146,6 +167,7 @@ export async function POST(request) {
     // Check if pool or tennis court exists and validate share link
     let pool = null;
     let tennisCourt = null;
+    let pickleballCourt = null;
     let linkExpiry = null;
 
     if (body.poolId) {
@@ -163,6 +185,15 @@ export async function POST(request) {
         );
       }
       linkExpiry = tennisCourt.linkExpiry;
+    } else if (body.pickleballCourtId) {
+      pickleballCourt = await Pickleball.findById(body.pickleballCourtId);
+      if (!pickleballCourt) {
+        return NextResponse.json(
+          { error: "Pickleball court not found" },
+          { status: 404 }
+        );
+      }
+      linkExpiry = pickleballCourt.linkExpiry;
     }
 
     // Validate share link expiry if booking is from share link
@@ -220,6 +251,8 @@ export async function POST(request) {
       conflictQuery.poolId = body.poolId;
     } else if (body.tennisCourtId) {
       conflictQuery.tennisCourtId = body.tennisCourtId;
+    } else if (body.pickleballCourtId) {
+      conflictQuery.pickleballCourtId = body.pickleballCourtId;
     }
 
     const conflictingBooking = await Booking.findOne(conflictQuery);
@@ -265,6 +298,8 @@ export async function POST(request) {
       bookingData.poolId = body.poolId;
     } else if (body.tennisCourtId) {
       bookingData.tennisCourtId = body.tennisCourtId;
+    } else if (body.pickleballCourtId) {
+      bookingData.pickleballCourtId = body.pickleballCourtId;
     }
 
     console.log("Creating booking with data:", bookingData);
@@ -273,7 +308,7 @@ export async function POST(request) {
 
     const savedBooking = await booking.save();
 
-    // Update pool or tennis court statistics
+    // Update pool, tennis court, or pickleball court statistics
     if (body.poolId) {
       await Pool.findByIdAndUpdate(body.poolId, {
         $inc: {
@@ -282,6 +317,12 @@ export async function POST(request) {
       });
     } else if (body.tennisCourtId) {
       await Tennis.findByIdAndUpdate(body.tennisCourtId, {
+        $inc: {
+          totalBookings: 1,
+        },
+      });
+    } else if (body.pickleballCourtId) {
+      await Pickleball.findByIdAndUpdate(body.pickleballCourtId, {
         $inc: {
           totalBookings: 1,
         },
@@ -298,6 +339,11 @@ export async function POST(request) {
     } else if (body.tennisCourtId) {
       populatedBooking = await Booking.findById(savedBooking._id).populate(
         "tennisCourtId",
+        "name location"
+      );
+    } else if (body.pickleballCourtId) {
+      populatedBooking = await Booking.findById(savedBooking._id).populate(
+        "pickleballCourtId",
         "name location"
       );
     }

@@ -52,6 +52,14 @@ const roleBasedNavItems = {
             ],
         },
         {
+            title: "Pickleball Court Management",
+            icon: <Target className="h-4 w-4" />,
+            items: [
+                { title: "View Pickleball Courts", url: "/dashboard/admin/pickleball" },
+                { title: "Add Pickleball Court", url: "/dashboard/admin/pickleball/create" },
+            ],
+        },
+        {
             title: "Booking Management",
             icon: <Calendar className="h-4 w-4" />,
             items: [
@@ -85,6 +93,13 @@ const roleBasedNavItems = {
             icon: <Target className="h-4 w-4" />,
             items: [
                 { title: "All Tennis Courts", url: "/dashboard/superadmin/tennis" },
+            ],
+        },
+        {
+            title: "Pickleball Court Management",
+            icon: <Target className="h-4 w-4" />,
+            items: [
+                { title: "All Pickleball Courts", url: "/dashboard/superadmin/pickleball" },
             ],
         },
         {

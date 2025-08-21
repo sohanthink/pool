@@ -11,6 +11,7 @@ export default function AdminDashboardPage() {
 
     const [pools, setPools] = useState([])
     const [tennisCourts, setTennisCourts] = useState([])
+    const [pickleballCourts, setPickleballCourts] = useState([])
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -30,6 +31,11 @@ export default function AdminDashboardPage() {
                 const tennisData = tennisRes.ok ? await tennisRes.json() : []
                 setTennisCourts(tennisData)
 
+                // Fetch pickleball courts owned by this admin
+                const pickleballRes = await fetch(`/api/pickleball?ownerEmail=${encodeURIComponent(user?.email)}`)
+                const pickleballData = pickleballRes.ok ? await pickleballRes.json() : []
+                setPickleballCourts(pickleballData)
+
                 // Fetch bookings for pools
                 const poolIds = poolData.map(p => p._id)
                 let allBookings = []
@@ -45,6 +51,16 @@ export default function AdminDashboardPage() {
                 const tennisIds = tennisData.map(t => t._id)
                 for (const tennisId of tennisIds) {
                     const bookingsRes = await fetch(`/api/bookings?tennisCourtId=${tennisId}`)
+                    if (bookingsRes.ok) {
+                        const bookingsData = await bookingsRes.json()
+                        allBookings = allBookings.concat(bookingsData)
+                    }
+                }
+
+                // Fetch bookings for pickleball courts
+                const pickleballIds = pickleballData.map(p => p._id)
+                for (const pickleballId of pickleballIds) {
+                    const bookingsRes = await fetch(`/api/bookings?pickleballCourtId=${pickleballId}`)
                     if (bookingsRes.ok) {
                         const bookingsData = await bookingsRes.json()
                         allBookings = allBookings.concat(bookingsData)
@@ -68,13 +84,14 @@ export default function AdminDashboardPage() {
     }
 
     // Stats
-    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.totalRevenue || 0), 0)
+    const totalRevenue = pools.reduce((sum, p) => sum + (p.totalRevenue || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.totalRevenue || 0), 0) + pickleballCourts.reduce((sum, p) => sum + (p.totalRevenue || 0), 0)
     const totalBookings = bookings.length
     const totalPools = pools.length
     const totalTennisCourts = tennisCourts.length
+    const totalPickleballCourts = pickleballCourts.length
     const pendingBookings = bookings.filter(b => b.status === 'Pending').length
     const confirmedBookings = bookings.filter(b => b.status === 'Confirmed').length
-    const avgRating = (pools.length + tennisCourts.length) ? ((pools.reduce((sum, p) => sum + (p.rating || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.rating || 0), 0)) / (pools.length + tennisCourts.length)).toFixed(2) : 'N/A'
+    const avgRating = (pools.length + tennisCourts.length + pickleballCourts.length) ? ((pools.reduce((sum, p) => sum + (p.rating || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.rating || 0), 0) + pickleballCourts.reduce((sum, p) => sum + (p.rating || 0), 0)) / (pools.length + tennisCourts.length + pickleballCourts.length)).toFixed(2) : 'N/A'
 
     return (
         <div className="pt-6 space-y-6">
@@ -93,7 +110,7 @@ export default function AdminDashboardPage() {
             </div> */}
 
             {/* Stats Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <Link href="/dashboard/admin/pool">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
                         <CardContent className="p-6">
@@ -118,6 +135,21 @@ export default function AdminDashboardPage() {
                                     <p className="text-2xl font-bold text-gray-800 mt-1">{totalTennisCourts}</p>
                                 </div>
                                 <div className="p-3 rounded-full bg-green-50 text-green-600">
+                                    <Target className="h-6 w-6" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/dashboard/admin/pickleball">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Pickleball Courts</p>
+                                    <p className="text-2xl font-bold text-gray-800 mt-1">{totalPickleballCourts}</p>
+                                </div>
+                                <div className="p-3 rounded-full bg-orange-50 text-orange-600">
                                     <Target className="h-6 w-6" />
                                 </div>
                             </div>
@@ -164,7 +196,7 @@ export default function AdminDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-4 gap-4">
                             <Link href="/dashboard/admin/pool/create">
                                 <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
                                     <Building2 className="h-6 w-6 text-blue-600 mb-2" />
@@ -177,6 +209,13 @@ export default function AdminDashboardPage() {
                                     <Target className="h-6 w-6 text-green-600 mb-2" />
                                     <p className="font-medium">Add Tennis Court</p>
                                     <p className="text-sm text-gray-600">Create new tennis court</p>
+                                </button>
+                            </Link>
+                            <Link href="/dashboard/admin/pickleball/create">
+                                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
+                                    <Target className="h-6 w-6 text-orange-600 mb-2" />
+                                    <p className="font-medium">Add Pickleball Court</p>
+                                    <p className="text-sm text-gray-600">Create new pickleball court</p>
                                 </button>
                             </Link>
                             <Link href="/dashboard/admin/bookings">
