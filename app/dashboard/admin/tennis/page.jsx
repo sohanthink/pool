@@ -201,6 +201,17 @@ const TennisCourtsPage = () => {
                                     </div>
                                 </div>
 
+                                {/* Image */}
+                                {court.images && court.images.length > 0 && (
+                                    <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                        <img
+                                            src={court.images[0]}
+                                            alt={court.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                )}
+
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 pt-4 border-t">
                                     <Link href={`/dashboard/admin/tennis/${court._id}`}>

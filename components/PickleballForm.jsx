@@ -32,6 +32,7 @@ const PickleballForm = ({ pickleball = null }) => {
     const [error, setError] = useState('')
     const [newAmenity, setNewAmenity] = useState('')
     const [uploading, setUploading] = useState(false)
+    const [dragOver, setDragOver] = useState(false)
 
     // Update owner fields if session changes
     React.useEffect(() => {
@@ -79,8 +80,7 @@ const PickleballForm = ({ pickleball = null }) => {
         }))
     }
 
-    const handleImageUpload = async (e) => {
-        const files = Array.from(e.target.files)
+    const handleImageUpload = async (files) => {
         setUploading(true)
         setError('')
 
@@ -96,7 +96,8 @@ const PickleballForm = ({ pickleball = null }) => {
                 })
 
                 if (!response.ok) {
-                    throw new Error('Failed to upload image')
+                    const errorData = await response.json()
+                    throw new Error(errorData.error || 'Failed to upload image')
                 }
 
                 const data = await response.json()
@@ -108,9 +109,39 @@ const PickleballForm = ({ pickleball = null }) => {
                 images: [...prev.images, ...uploadedUrls]
             }))
         } catch (err) {
-            setError('Failed to upload images')
+            setError(err.message || 'Failed to upload images')
         } finally {
             setUploading(false)
+        }
+    }
+
+    const handleFileInputChange = (e) => {
+        const files = Array.from(e.target.files)
+        if (files.length > 0) {
+            handleImageUpload(files)
+        }
+    }
+
+    const handleDragOver = (e) => {
+        e.preventDefault()
+        setDragOver(true)
+    }
+
+    const handleDragLeave = (e) => {
+        e.preventDefault()
+        setDragOver(false)
+    }
+
+    const handleDrop = (e) => {
+        e.preventDefault()
+        setDragOver(false)
+
+        const files = Array.from(e.dataTransfer.files).filter(file =>
+            file.type.startsWith('image/')
+        )
+
+        if (files.length > 0) {
+            handleImageUpload(files)
         }
     }
 
@@ -181,6 +212,7 @@ const PickleballForm = ({ pickleball = null }) => {
                         {/* Owner Information */}
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Owner Information</h3>
+                            <p className="text-sm text-gray-600 mb-4">Owner name and email are automatically filled from your account information and cannot be changed.</p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="ownerName">Owner Name *</Label>
@@ -191,6 +223,8 @@ const PickleballForm = ({ pickleball = null }) => {
                                         onChange={handleInputChange}
                                         placeholder="Enter owner name"
                                         required
+                                        disabled
+                                        className="bg-gray-100 cursor-not-allowed"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -203,6 +237,8 @@ const PickleballForm = ({ pickleball = null }) => {
                                         onChange={handleInputChange}
                                         placeholder="Enter owner email"
                                         required
+                                        disabled
+                                        className="bg-gray-100 cursor-not-allowed"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -345,16 +381,27 @@ const PickleballForm = ({ pickleball = null }) => {
 
                         <div className="space-y-4">
                             <Label>Images</Label>
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <div
+                                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragOver
+                                    ? 'border-blue-400 bg-blue-50'
+                                    : 'border-gray-300 hover:border-gray-400'
+                                    }`}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                            >
                                 <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
                                 <p className="text-sm text-gray-600 mb-2">
-                                    Click to upload or drag and drop
+                                    Click to upload or drag and drop images here
+                                </p>
+                                <p className="text-xs text-gray-500 mb-4">
+                                    Supports JPEG, PNG, WebP (max 5MB each)
                                 </p>
                                 <input
                                     type="file"
                                     multiple
                                     accept="image/*"
-                                    onChange={handleImageUpload}
+                                    onChange={handleFileInputChange}
                                     className="hidden"
                                     id="image-upload"
                                     disabled={uploading}

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,17 +8,22 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Target, Calendar, Clock, MapPin, DollarSign, Users } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Target, Calendar as CalendarIcon, Clock, MapPin, DollarSign, Users, AlertCircle, ArrowLeft, CheckCircle, User, Phone, Mail } from "lucide-react"
 
-const ShareablePickleballPage = ({ params }) => {
+const ShareablePickleballPage = () => {
+    const params = useParams()
     const router = useRouter()
     const courtId = params.id
     const token = params.token
     const [pickleball, setPickleball] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [timeRemaining, setTimeRemaining] = useState('')
     const [availableSlots, setAvailableSlots] = useState([])
-    const [selectedDate, setSelectedDate] = useState('')
+    const [loadingSlots, setLoadingSlots] = useState(false)
+    const [errorSlots, setErrorSlots] = useState('')
+    const [selectedDate, setSelectedDate] = useState(null)
     const [selectedTime, setSelectedTime] = useState('')
     const [bookingData, setBookingData] = useState({
         customerName: '',
@@ -34,48 +39,119 @@ const ShareablePickleballPage = ({ params }) => {
         validateShareLink()
     }, [courtId, token])
 
+    useEffect(() => {
+        if (pickleball?.linkExpiry) {
+            const updateTimeRemaining = () => {
+                const now = new Date();
+                const expiry = new Date(pickleball.linkExpiry);
+                const diff = expiry - now;
+
+                if (diff <= 0) {
+                    setTimeRemaining('Expired');
+                    setError('This link has expired');
+                    return;
+                }
+
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                setTimeRemaining(`${hours}h ${minutes}m remaining`);
+            };
+
+            updateTimeRemaining();
+            const interval = setInterval(updateTimeRemaining, 60000);
+            return () => clearInterval(interval);
+        }
+    }, [pickleball?.linkExpiry]);
+
     const validateShareLink = async () => {
         try {
-            const res = await fetch(`/api/pickleball/share/validate?courtId=${courtId}&token=${token}`)
-            if (!res.ok) throw new Error('Invalid or expired share link')
-            const data = await res.json()
-            setPickleball(data.pickleball)
+            const res = await fetch('/api/pickleball/share/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ courtId, token }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                if (res.status === 410) {
+                    setError('This link has expired');
+                } else {
+                    setError(data.error || 'Invalid or inactive link');
+                }
+                return;
+            }
+
+            const data = await res.json();
+            setPickleball(data.pickleball);
         } catch (err) {
-            setError('This share link is invalid or has expired')
+            setError('Failed to load pickleball court information');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
 
-    const fetchAvailability = async (date) => {
-        try {
-            const res = await fetch(`/api/pickleball/${courtId}/availability?date=${date}`)
-            if (!res.ok) throw new Error('Failed to fetch availability')
-            const data = await res.json()
-            setAvailableSlots(data.availableSlots)
-        } catch (err) {
-            setError('Failed to load availability')
-        }
-    }
+    // Fetch available slots when date changes
+    useEffect(() => {
+        if (!selectedDate || !courtId) return;
 
-    const handleDateChange = (date) => {
-        setSelectedDate(date)
-        setSelectedTime('')
-        if (date) {
-            fetchAvailability(date)
+        async function fetchSlots() {
+            setLoadingSlots(true);
+            setErrorSlots('');
+            try {
+                const dateStr = selectedDate.toISOString().split('T')[0];
+                const res = await fetch(`/api/pickleball/${courtId}/availability?date=${dateStr}`);
+                if (!res.ok) throw new Error('Failed to fetch availability');
+                const data = await res.json();
+                setAvailableSlots(data.availableSlots);
+            } catch (err) {
+                setErrorSlots('Failed to load available slots');
+                setAvailableSlots([]);
+            } finally {
+                setLoadingSlots(false);
+            }
         }
-    }
+        fetchSlots();
+    }, [courtId, selectedDate]);
+
+    // Check if date is within link validity period
+    const isDateWithinValidity = (date) => {
+        if (!pickleball?.linkExpiry) return true;
+        const linkExpiry = new Date(pickleball.linkExpiry);
+        const selectedDate = new Date(date);
+        const linkExpiryDate = new Date(linkExpiry.getFullYear(), linkExpiry.getMonth(), linkExpiry.getDate());
+        const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        return selectedDateOnly <= linkExpiryDate;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setSubmitting(true)
         setError('')
 
+        if (!selectedDate || !selectedTime) {
+            setError("Please select a date and time");
+            setSubmitting(false);
+            return;
+        }
+
+        if (!bookingData.customerName || !bookingData.customerEmail || !bookingData.customerPhone) {
+            setError("Please fill in all required fields");
+            setSubmitting(false);
+            return;
+        }
+
+        if (!isDateWithinValidity(selectedDate)) {
+            setError("Selected date is outside the link validity period");
+            setSubmitting(false);
+            return;
+        }
+
         try {
+            const dateStr = selectedDate.toISOString().split('T')[0];
             const bookingPayload = {
                 ...bookingData,
                 pickleballCourtId: courtId,
-                date: selectedDate,
+                date: dateStr,
                 time: selectedTime,
                 fromShareLink: true
             }
@@ -177,14 +253,7 @@ const ShareablePickleballPage = ({ params }) => {
                                 </div>
                             )}
 
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <h4 className="font-medium text-blue-900 mb-2">Owner Information</h4>
-                                <div className="space-y-1 text-sm text-blue-800">
-                                    <p>Name: {pickleball.owner.name}</p>
-                                    <p>Email: {pickleball.owner.email}</p>
-                                    {pickleball.owner.phone && <p>Phone: {pickleball.owner.phone}</p>}
-                                </div>
-                            </div>
+
                         </CardContent>
                     </Card>
 
@@ -194,131 +263,166 @@ const ShareablePickleballPage = ({ params }) => {
                             <CardTitle>Book This Court</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
+                            <form onSubmit={handleSubmit} className="space-y-6">
                                 {error && (
                                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                                         {error}
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="date">Date *</Label>
+                                {/* Link Validity Notice */}
+                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 text-orange-800">
+                                        <Clock className="h-4 w-4" />
+                                        <span className="font-medium">Booking Time Restriction</span>
+                                    </div>
+                                    <p className="text-orange-700 text-sm mt-1">
+                                        You can only book dates within the link validity period: until {new Date(pickleball.linkExpiry).toLocaleString()}
+                                    </p>
+                                </div>
+
+                                {/* Date Selection */}
+                                <div>
+                                    <Label className="text-sm font-medium">Select Date</Label>
+                                    <Calendar
+                                        mode="single"
+                                        selected={selectedDate}
+                                        onSelect={setSelectedDate}
+                                        className="rounded-md border mt-2"
+                                        disabled={(date) => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            return date < today || !isDateWithinValidity(date);
+                                        }}
+                                    />
+                                    {selectedDate && !isDateWithinValidity(selectedDate) && (
+                                        <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
+                                            <AlertCircle className="h-4 w-4" />
+                                            This date is outside the link validity period
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Time Selection */}
+                                {selectedDate && isDateWithinValidity(selectedDate) && (
+                                    <div>
+                                        <Label className="text-sm font-medium">Select Time</Label>
+                                        {loadingSlots ? (
+                                            <div className="text-gray-500 mt-2">Loading slots...</div>
+                                        ) : errorSlots ? (
+                                            <div className="text-red-600 mt-2">{errorSlots}</div>
+                                        ) : (
+                                            <Select value={selectedTime} onValueChange={setSelectedTime}>
+                                                <SelectTrigger className="mt-2">
+                                                    <SelectValue placeholder="Choose a time slot" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableSlots.map((slot) => (
+                                                        <SelectItem key={slot} value={slot}>
+                                                            {slot}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                        {selectedDate && !loadingSlots && availableSlots.length === 0 && (
+                                            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
+                                                <AlertCircle className="h-4 w-4" />
+                                                No available slots for this date
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Duration */}
+                                <div>
+                                    <Label className="text-sm font-medium">Duration (hours)</Label>
+                                    <Select value={bookingData.duration.toString()} onValueChange={(value) => setBookingData(prev => ({ ...prev, duration: parseInt(value) }))}>
+                                        <SelectTrigger className="mt-2">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">1 hour</SelectItem>
+                                            <SelectItem value="2">2 hours</SelectItem>
+                                            <SelectItem value="3">3 hours</SelectItem>
+                                            <SelectItem value="4">4 hours</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Price Display */}
+                                {selectedDate && selectedTime && (
+                                    <div className="bg-green-50 p-4 rounded-lg">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-medium">Total Price:</span>
+                                            <span className="text-xl font-bold text-green-600">
+                                                ${pickleball.price * bookingData.duration}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Contact Information */}
+                                <div className="space-y-4">
+                                    <h3 className="font-medium">Contact Information</h3>
+
+                                    <div>
+                                        <Label htmlFor="customerName">Full Name *</Label>
                                         <Input
-                                            id="date"
-                                            type="date"
-                                            value={selectedDate}
-                                            onChange={(e) => handleDateChange(e.target.value)}
-                                            min={new Date().toISOString().split('T')[0]}
+                                            id="customerName"
+                                            value={bookingData.customerName}
+                                            onChange={(e) => setBookingData(prev => ({ ...prev, customerName: e.target.value }))}
                                             required
+                                            className="mt-1"
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="time">Time *</Label>
-                                        <Select value={selectedTime} onValueChange={setSelectedTime} required>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select time" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableSlots.map((slot) => (
-                                                    <SelectItem key={slot} value={slot}>
-                                                        {slot}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="players">Number of Players *</Label>
-                                        <Select
-                                            value={bookingData.players.toString()}
-                                            onValueChange={(value) => setBookingData(prev => ({ ...prev, players: parseInt(value) }))}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select players" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="1">1 Player</SelectItem>
-                                                <SelectItem value="2">2 Players</SelectItem>
-                                                <SelectItem value="3">3 Players</SelectItem>
-                                                <SelectItem value="4">4 Players</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    <div>
+                                        <Label htmlFor="customerEmail">Email *</Label>
+                                        <Input
+                                            id="customerEmail"
+                                            type="email"
+                                            value={bookingData.customerEmail}
+                                            onChange={(e) => setBookingData(prev => ({ ...prev, customerEmail: e.target.value }))}
+                                            required
+                                            className="mt-1"
+                                        />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="duration">Duration (hours) *</Label>
-                                        <Select
-                                            value={bookingData.duration.toString()}
-                                            onValueChange={(value) => setBookingData(prev => ({ ...prev, duration: parseInt(value) }))}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select duration" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="1">1 Hour</SelectItem>
-                                                <SelectItem value="2">2 Hours</SelectItem>
-                                                <SelectItem value="3">3 Hours</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    <div>
+                                        <Label htmlFor="customerPhone">Phone Number *</Label>
+                                        <Input
+                                            id="customerPhone"
+                                            type="tel"
+                                            value={bookingData.customerPhone}
+                                            onChange={(e) => setBookingData(prev => ({ ...prev, customerPhone: e.target.value }))}
+                                            required
+                                            className="mt-1"
+                                        />
                                     </div>
-                                </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="customerName">Full Name *</Label>
-                                    <Input
-                                        id="customerName"
-                                        value={bookingData.customerName}
-                                        onChange={(e) => setBookingData(prev => ({ ...prev, customerName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
+                                    <div>
+                                        <Label htmlFor="players">Number of Players</Label>
+                                        <Input
+                                            id="players"
+                                            type="number"
+                                            min="1"
+                                            max="4"
+                                            value={bookingData.players}
+                                            onChange={(e) => setBookingData(prev => ({ ...prev, players: parseInt(e.target.value) }))}
+                                            className="mt-1"
+                                        />
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="customerEmail">Email *</Label>
-                                    <Input
-                                        id="customerEmail"
-                                        type="email"
-                                        value={bookingData.customerEmail}
-                                        onChange={(e) => setBookingData(prev => ({ ...prev, customerEmail: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="customerPhone">Phone *</Label>
-                                    <Input
-                                        id="customerPhone"
-                                        type="tel"
-                                        value={bookingData.customerPhone}
-                                        onChange={(e) => setBookingData(prev => ({ ...prev, customerPhone: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="notes">Notes (Optional)</Label>
-                                    <Textarea
-                                        id="notes"
-                                        value={bookingData.notes}
-                                        onChange={(e) => setBookingData(prev => ({ ...prev, notes: e.target.value }))}
-                                        rows={3}
-                                    />
-                                </div>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <h4 className="font-medium text-blue-900 mb-2">Booking Summary</h4>
-                                    <div className="space-y-1 text-sm text-blue-800">
-                                        <p>Court: {pickleball.name}</p>
-                                        <p>Date: {selectedDate}</p>
-                                        <p>Time: {selectedTime}</p>
-                                        <p>Duration: {bookingData.duration} hour(s)</p>
-                                        <p>Players: {bookingData.players}</p>
-                                        <p className="font-semibold">Total: ${pickleball.price * bookingData.duration}</p>
+                                    <div>
+                                        <Label htmlFor="notes">Notes (Optional)</Label>
+                                        <Textarea
+                                            id="notes"
+                                            value={bookingData.notes}
+                                            onChange={(e) => setBookingData(prev => ({ ...prev, notes: e.target.value }))}
+                                            rows={3}
+                                            className="mt-1"
+                                        />
                                     </div>
                                 </div>
 

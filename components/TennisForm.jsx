@@ -72,6 +72,7 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
     const [imageErrors, setImageErrors] = useState([null, null, null, null, null]);
     const [uploading, setUploading] = useState([false, false, false, false, false]);
     const [uploaded, setUploaded] = useState([false, false, false, false, false]);
+    const [dragOver, setDragOver] = useState([false, false, false, false, false]);
 
     // Update owner fields if session changes
     React.useEffect(() => {
@@ -105,6 +106,10 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
     const handleDrop = async (index, files) => {
         if (!files || files.length === 0) return;
         const file = files[0];
+
+        // Reset drag over state
+        setDragOver(prev => { const arr = [...prev]; arr[index] = false; return arr; });
+
         if (file.size > MAX_IMAGE_SIZE) {
             setImageErrors(prev => {
                 const errs = [...prev];
@@ -127,23 +132,40 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
                 method: 'POST',
                 body: formData,
             });
-            if (!res.ok) throw new Error('Failed to upload image');
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to upload image');
+            }
             const data = await res.json();
+            console.log('Upload response:', data);
             setForm((prev) => {
                 const images = [...prev.images];
-                images[index] = data.filePath;
+                images[index] = data.url;
+                console.log('Updated images array:', images);
                 return { ...prev, images };
             });
             setUploaded(prev => { const arr = [...prev]; arr[index] = true; return arr; });
         } catch (err) {
             setImageErrors(prev => {
                 const errs = [...prev];
-                errs[index] = 'Image upload failed.';
+                errs[index] = err.message || 'Image upload failed.';
                 return errs;
             });
         } finally {
             setUploading(prev => { const arr = [...prev]; arr[index] = false; return arr; });
         }
+    };
+
+    const handleDragOver = (index, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(prev => { const arr = [...prev]; arr[index] = true; return arr; });
+    };
+
+    const handleDragLeave = (index, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(prev => { const arr = [...prev]; arr[index] = false; return arr; });
     };
 
     const handleRemoveImage = (index) => {
@@ -204,6 +226,7 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
                 amenities: form.amenities.split(',').map(a => a.trim()).filter(Boolean),
                 images: form.images.filter(Boolean)
             };
+            console.log('Submitting payload:', payload);
             if (onSubmit) {
                 await onSubmit(payload);
                 setSuccess(true);
@@ -442,12 +465,15 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
                     <div className="flex items-center gap-4">
                         <div className="flex gap-4">
                             {[...Array(5)].map((_, index) => (
-                                <Card key={index} className="w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
+                                <Card key={index} className={`w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-all ${dragOver[index]
+                                    ? 'border-blue-400 bg-blue-50 shadow-lg'
+                                    : 'hover:shadow-lg'
+                                    }`} onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
                                     <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
                                         {form.images[index] ? (
                                             <div className="relative w-full h-full">
                                                 <img
-                                                    src={form.images[index].startsWith('/uploads/') ? form.images[index] : `/uploads/${form.images[index].replace(/^\/+/, '')}`}
+                                                    src={form.images[index]}
                                                     alt={`Court ${index + 1}`}
                                                     className="w-full h-full object-cover rounded-lg"
                                                 />
@@ -481,7 +507,11 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
                                             type="file"
                                             accept="image/*"
                                             className="hidden"
-                                            onChange={e => handleDrop(index, e.target.files)}
+                                            onChange={e => {
+                                                if (e.target.files && e.target.files.length > 0) {
+                                                    handleDrop(index, e.target.files);
+                                                }
+                                            }}
                                         />
                                         {imageErrors[index] && (
                                             <Badge variant="destructive" className="absolute bottom-0 left-0 right-0 text-xs whitespace-normal">{imageErrors[index]}</Badge>
@@ -489,7 +519,8 @@ const TennisForm = ({ initialData, onSubmit, submitLabel }) => {
                                     </CardContent>
                                     <div
                                         className="absolute inset-0 z-10"
-                                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                                        onDragOver={e => handleDragOver(index, e)}
+                                        onDragLeave={e => handleDragLeave(index, e)}
                                         onDrop={e => {
                                             e.preventDefault();
                                             e.stopPropagation();

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Target, Calendar, Clock, MapPin, DollarSign, Users } from "lucide-react"
 
-const BookPickleballPage = ({ params }) => {
+const BookPickleballPage = () => {
+    const params = useParams()
     const router = useRouter()
     const courtId = params.id
     const [pickleball, setPickleball] = useState(null)

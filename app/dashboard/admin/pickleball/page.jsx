@@ -239,32 +239,32 @@ const PickleballPage = () => {
                                         View
                                     </Button>
                                 </Link>
-                                <Link href={`/dashboard/admin/pickleball/${court._id}/edit`}>
+                                {/* <Link href={`/dashboard/admin/pickleball/${court._id}/edit`}>
                                     <Button size="sm" variant="outline">
                                         <Edit className="h-4 w-4" />
                                     </Button>
-                                </Link>
-                                <Button
+                                </Link> */}
+                                {/* <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleShareLink(court._id)}
                                 >
                                     <Share2 className="h-4 w-4" />
-                                </Button>
-                                <Button
+                                </Button> */}
+                                {/* <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleBookingLink(court._id)}
                                 >
                                     <LinkIcon className="h-4 w-4" />
-                                </Button>
-                                <Button
+                                </Button> */}
+                                {/* <Button
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => handleDelete(court._id)}
                                 >
                                     <Trash2 className="h-4 w-4" />
-                                </Button>
+                                </Button> */}
                             </div>
                         </CardContent>
                     </Card>

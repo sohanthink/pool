@@ -99,15 +99,15 @@ const PickleballDetails = ({ params }) => {
     };
 
     const handleGenerateShareLink = async () => {
-        const expiryDays = prompt('Enter link expiry time in days (default: 7):', '7');
-        if (!expiryDays) return;
+        const expiryHours = prompt('Enter link expiry time in hours (default: 24):', '24');
+        if (!expiryHours) return;
 
         setGeneratingLink(true);
         try {
             const res = await fetch(`/api/pickleball/${courtId}/share-link`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expiryDays: parseInt(expiryDays) || 7 }),
+                body: JSON.stringify({ expiryHours: parseInt(expiryHours) || 24 }),
             });
 
             if (!res.ok) {
@@ -116,7 +116,7 @@ const PickleballDetails = ({ params }) => {
             }
 
             const data = await res.json();
-            setShareLink(data.shareUrl);
+            setShareLink(data.shareableUrl);
             setLinkExpiry(new Date(data.linkExpiry).toLocaleString());
             setIsLinkActive(true);
             alert('Shareable link generated successfully!');

@@ -1,41 +1,92 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Tennis from "@/models/Tennis";
+import mongoose from "mongoose";
 
+// POST /api/tennis/share/validate - Validate shareable link
 export async function POST(request) {
   try {
     const { courtId, token } = await request.json();
 
+    console.log("Validating tennis link:", { courtId, token });
+
     if (!courtId || !token) {
       return NextResponse.json(
-        { error: "Court ID and token are required" },
+        {
+          error: "Court ID and token are required",
+        },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    const court = await Tennis.findById(courtId);
-    if (!court) {
+    // Convert courtId to ObjectId
+    let objectId;
+    try {
+      objectId = new mongoose.Types.ObjectId(courtId);
+    } catch (error) {
       return NextResponse.json(
-        { error: "Tennis court not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if link is active and token matches
-    if (!court.isLinkActive || court.linkToken !== token) {
-      return NextResponse.json(
-        { error: "Invalid or inactive link" },
+        {
+          error: "Invalid court ID format",
+        },
         { status: 400 }
       );
     }
 
-    // Check if link has expired
-    if (court.linkExpiry && new Date() > new Date(court.linkExpiry)) {
-      return NextResponse.json({ error: "Link has expired" }, { status: 410 });
+    // First, let's check if the tennis court exists
+    const courtExists = await Tennis.findById(objectId);
+    console.log("Tennis court exists:", !!courtExists);
+
+    if (!courtExists) {
+      return NextResponse.json(
+        {
+          error: "Tennis court not found",
+        },
+        { status: 404 }
+      );
     }
 
+    // Check the court's link status
+    console.log("Tennis court link status:", {
+      isLinkActive: courtExists.isLinkActive,
+      linkToken: courtExists.linkToken,
+      linkExpiry: courtExists.linkExpiry,
+    });
+
+    const court = await Tennis.findOne({
+      _id: objectId,
+      linkToken: token,
+      isLinkActive: true,
+    });
+
+    console.log("Found tennis court with token:", !!court);
+
+    if (!court) {
+      return NextResponse.json(
+        {
+          error: "Invalid or inactive link",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Check if link has expired
+    const now = new Date();
+    if (court.linkExpiry && now > court.linkExpiry) {
+      // Mark link as inactive since it's expired
+      court.isLinkActive = false;
+      await court.save();
+
+      return NextResponse.json(
+        {
+          error: "Link has expired",
+        },
+        { status: 410 }
+      );
+    }
+
+    // Return tennis court data for the shareable view
     return NextResponse.json({
       success: true,
       court: {
@@ -46,16 +97,14 @@ export async function POST(request) {
         surface: court.surface,
         type: court.type,
         price: court.price,
-        rating: court.rating,
         amenities: court.amenities,
         images: court.images,
+        rating: court.rating,
         linkExpiry: court.linkExpiry,
-        isLinkActive: court.isLinkActive,
-        linkToken: court.linkToken,
       },
     });
   } catch (error) {
-    console.error("Error validating tennis court share link:", error);
+    console.error("Error validating shareable link:", error);
     return NextResponse.json(
       { error: "Failed to validate link" },
       { status: 500 }

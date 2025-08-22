@@ -1,22 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../../../auth/[...nextauth]/route";
-import connectDB from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import Pickleball from "@/models/Pickleball";
 import crypto from "crypto";
 
-export async function POST(request, { params }) {
+// POST /api/pickleball/[id]/share-link - Generate or update shareable link
+export async function POST(request, context) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const params = await context.params;
+    const { id } = params;
+
+    console.log("Generating share link for pickleball court:", id);
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Pickleball court ID is required" },
+        { status: 400 }
+      );
     }
 
-    await connectDB();
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
-    const body = await request.json();
-    const { expiryDays = 7 } = body;
+    const { expiryHours = 24 } = await request.json();
+    console.log("Expiry hours:", expiryHours);
+
+    await dbConnect();
 
     const pickleball = await Pickleball.findById(id);
     if (!pickleball) {
@@ -26,51 +31,75 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if the user owns this pickleball court
-    if (pickleball.owner.email !== session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    console.log("Found pickleball court:", pickleball.name);
 
-    // Generate a unique token
+    // Generate a unique token for the link
     const linkToken = crypto.randomBytes(32).toString("hex");
-    const linkExpiry = new Date();
-    linkExpiry.setDate(linkExpiry.getDate() + expiryDays);
+    console.log("Generated token:", linkToken);
 
-    // Update the pickleball court with link information
-    const updatedPickleball = await Pickleball.findByIdAndUpdate(
-      id,
+    // Calculate expiry date
+    const linkExpiry = new Date();
+    linkExpiry.setHours(linkExpiry.getHours() + parseInt(expiryHours));
+    console.log("Expiry date:", linkExpiry);
+
+    // Update pickleball court with link information using findOneAndUpdate
+    const updatedPickleball = await Pickleball.findOneAndUpdate(
+      { _id: id },
       {
-        linkToken,
-        linkExpiry,
-        isLinkActive: true,
+        $set: {
+          linkToken: linkToken,
+          linkExpiry: linkExpiry,
+          isLinkActive: true,
+        },
       },
-      { new: true }
+      { new: true, runValidators: true, upsert: false }
     );
 
+    console.log(
+      "Pickleball court updated successfully:",
+      updatedPickleball.name
+    );
+    console.log("Updated pickleball court link status:", {
+      isLinkActive: updatedPickleball.isLinkActive,
+      linkToken: updatedPickleball.linkToken,
+      linkExpiry: updatedPickleball.linkExpiry,
+    });
+
+    // Generate the shareable URL
+    const shareableUrl = `${
+      process.env.NEXTAUTH_URL || "http://localhost:3000"
+    }/pickleball/${pickleball._id}/share/${linkToken}`;
+    console.log("Shareable URL:", shareableUrl);
+
     return NextResponse.json({
-      linkToken,
-      linkExpiry,
-      shareUrl: `${process.env.NEXTAUTH_URL}/pickleball/${id}/share/${linkToken}`,
+      success: true,
+      shareableUrl,
+      linkExpiry: updatedPickleball.linkExpiry,
+      expiryHours: parseInt(expiryHours),
     });
   } catch (error) {
-    console.error("Error generating share link:", error);
+    console.error("Error generating shareable link:", error);
     return NextResponse.json(
-      { error: "Failed to generate share link" },
+      { error: "Failed to generate shareable link" },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(request, { params }) {
+// DELETE /api/pickleball/[id]/share-link - Deactivate shareable link
+export async function DELETE(request, context) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const params = await context.params;
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Pickleball court ID is required" },
+        { status: 400 }
+      );
     }
 
-    await connectDB();
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
+    await dbConnect();
 
     const pickleball = await Pickleball.findById(id);
     if (!pickleball) {
@@ -80,29 +109,21 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Check if the user owns this pickleball court
-    if (pickleball.owner.email !== session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Deactivate the link
+    pickleball.isLinkActive = false;
+    pickleball.linkToken = null;
+    pickleball.linkExpiry = null;
 
-    // Deactivate the share link
-    const updatedPickleball = await Pickleball.findByIdAndUpdate(
-      id,
-      {
-        linkToken: null,
-        linkExpiry: null,
-        isLinkActive: false,
-      },
-      { new: true }
-    );
+    await pickleball.save();
 
     return NextResponse.json({
-      message: "Share link deactivated successfully",
+      success: true,
+      message: "Shareable link deactivated successfully",
     });
   } catch (error) {
-    console.error("Error deactivating share link:", error);
+    console.error("Error deactivating shareable link:", error);
     return NextResponse.json(
-      { error: "Failed to deactivate share link" },
+      { error: "Failed to deactivate shareable link" },
       { status: 500 }
     );
   }

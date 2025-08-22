@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import Pickleball from "@/models/Pickleball";
 import Booking from "@/models/Booking";
 
 export async function GET(request, { params }) {
   try {
-    await connectDB();
+    await dbConnect();
     const resolvedParams = await params;
     const { id } = resolvedParams;
     const { searchParams } = new URL(request.url);

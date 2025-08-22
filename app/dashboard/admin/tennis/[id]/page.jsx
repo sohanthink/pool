@@ -259,7 +259,7 @@ const TennisCourtDetails = ({ params }) => {
                                     <div key={index} className="aspect-video bg-gradient-to-br from-green-400 to-green-600 rounded-lg relative flex items-center justify-center overflow-hidden">
                                         {image ? (
                                             <img
-                                                src={image.startsWith('/uploads/') ? image : `/uploads/${image?.replace(/^\/+/, '')}`}
+                                                src={image}
                                                 alt={`Court Image ${index + 1}`}
                                                 className="w-full h-full object-cover rounded-lg"
                                             />

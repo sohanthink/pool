@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield, Building2, Settings, BarChart3, Lock, Target } from "lucide-react";
+import { GalleryVerticalEnd, ChevronDown, ChevronRight, LayoutDashboard, Users, FileText, Calendar, Shield, Building2, Settings, BarChart3, Lock, Target, Volleyball } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -52,13 +52,14 @@ const roleBasedNavItems = {
             ],
         },
         {
-            title: "Pickleball Court Management",
-            icon: <Target className="h-4 w-4" />,
+            title: "Pickleball Management",
+            icon: <Volleyball className="h-4 w-4" />,
             items: [
                 { title: "View Pickleball Courts", url: "/dashboard/admin/pickleball" },
                 { title: "Add Pickleball Court", url: "/dashboard/admin/pickleball/create" },
             ],
         },
+
         {
             title: "Booking Management",
             icon: <Calendar className="h-4 w-4" />,

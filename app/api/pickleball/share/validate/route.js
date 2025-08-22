@@ -1,50 +1,112 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import Pickleball from "@/models/Pickleball";
+import mongoose from "mongoose";
 
-export async function GET(request) {
+// POST /api/pickleball/share/validate - Validate shareable link
+export async function POST(request) {
   try {
-    await connectDB();
-    const { searchParams } = new URL(request.url);
-    const courtId = searchParams.get("courtId");
-    const token = searchParams.get("token");
+    const { courtId, token } = await request.json();
+
+    console.log("Validating pickleball link:", { courtId, token });
 
     if (!courtId || !token) {
       return NextResponse.json(
-        { error: "Missing required parameters" },
+        {
+          error: "Court ID and token are required",
+        },
         { status: 400 }
       );
     }
 
-    const pickleball = await Pickleball.findById(courtId);
-    if (!pickleball) {
+    await dbConnect();
+
+    // Convert courtId to ObjectId
+    let objectId;
+    try {
+      objectId = new mongoose.Types.ObjectId(courtId);
+    } catch (error) {
       return NextResponse.json(
-        { error: "Pickleball court not found" },
+        {
+          error: "Invalid court ID format",
+        },
+        { status: 400 }
+      );
+    }
+
+    // First, let's check if the pickleball court exists
+    const courtExists = await Pickleball.findById(objectId);
+    console.log("Pickleball court exists:", !!courtExists);
+
+    if (!courtExists) {
+      return NextResponse.json(
+        {
+          error: "Pickleball court not found",
+        },
         { status: 404 }
       );
     }
 
-    // Check if the share link is active and valid
-    if (!pickleball.isLinkActive || pickleball.linkToken !== token) {
+    // Check the court's link status
+    console.log("Pickleball court link status:", {
+      isLinkActive: courtExists.isLinkActive,
+      linkToken: courtExists.linkToken,
+      linkExpiry: courtExists.linkExpiry,
+    });
+
+    const pickleball = await Pickleball.findOne({
+      _id: objectId,
+      linkToken: token,
+      isLinkActive: true,
+    });
+
+    console.log("Found pickleball court with token:", !!pickleball);
+
+    if (!pickleball) {
       return NextResponse.json(
-        { error: "Invalid or inactive share link" },
-        { status: 400 }
+        {
+          error: "Invalid or inactive link",
+        },
+        { status: 404 }
       );
     }
 
-    // Check if the link has expired
-    if (pickleball.linkExpiry && new Date() > new Date(pickleball.linkExpiry)) {
+    // Check if link has expired
+    const now = new Date();
+    if (pickleball.linkExpiry && now > pickleball.linkExpiry) {
+      // Mark link as inactive since it's expired
+      pickleball.isLinkActive = false;
+      await pickleball.save();
+
       return NextResponse.json(
-        { error: "Share link has expired" },
-        { status: 400 }
+        {
+          error: "Link has expired",
+        },
+        { status: 410 }
       );
     }
 
-    return NextResponse.json({ pickleball });
+    // Return pickleball court data for the shareable view
+    return NextResponse.json({
+      success: true,
+      pickleball: {
+        _id: pickleball._id,
+        name: pickleball.name,
+        description: pickleball.description,
+        location: pickleball.location,
+        surface: pickleball.surface,
+        type: pickleball.type,
+        price: pickleball.price,
+        amenities: pickleball.amenities,
+        images: pickleball.images,
+        rating: pickleball.rating,
+        linkExpiry: pickleball.linkExpiry,
+      },
+    });
   } catch (error) {
-    console.error("Error validating share link:", error);
+    console.error("Error validating shareable link:", error);
     return NextResponse.json(
-      { error: "Failed to validate share link" },
+      { error: "Failed to validate link" },
       { status: 500 }
     );
   }
