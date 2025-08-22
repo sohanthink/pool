@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
-import connectDB from "@/lib/mongodb";
+import { authOptions } from "../../auth/[...nextauth]/route";
+import dbConnect from "@/lib/mongodb";
 import Pickleball from "@/models/Pickleball";
 
 export async function GET(request) {
@@ -11,7 +11,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const ownerEmail = searchParams.get("ownerEmail");
