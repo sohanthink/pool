@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Building2, Plus, Eye, Copy } from "lucide-react";
+import { Building2, Plus, Eye } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 export default function PoolList() {
@@ -11,7 +11,6 @@ export default function PoolList() {
     const [pools, setPools] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [copiedPoolId, setCopiedPoolId] = useState(null);
 
     useEffect(() => {
         if (!session?.user?.email) return;
@@ -32,13 +31,6 @@ export default function PoolList() {
         fetchPools();
     }, [session?.user?.email]);
 
-    // Function to copy booking link
-    const handleCopyLink = (poolId) => {
-        const link = `${window.location.origin}/pool/${poolId}/book`;
-        navigator.clipboard.writeText(link);
-        setCopiedPoolId(poolId);
-        setTimeout(() => setCopiedPoolId(null), 1500);
-    };
 
     if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
     if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
@@ -106,20 +98,11 @@ export default function PoolList() {
                                 <Eye className="h-4 w-4" />
                                 View Details
                             </Link>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-2 mt-2"
-                                onClick={() => handleCopyLink(pool._id)}
-                            >
-                                <Copy className="h-4 w-4" />
-                                {copiedPoolId === pool._id ? "Link Copied!" : "Share Link"}
-                            </Button>
                         </CardFooter>
                     </Card>
                 ))}
             </div>
+
         </div>
     );
 }

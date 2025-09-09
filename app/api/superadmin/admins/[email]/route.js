@@ -24,7 +24,7 @@ export async function GET(request, context) {
     // Calculate booking status distribution
     const bookingStats = {
       confirmed: bookings.filter((b) => b.status === "Confirmed").length,
-      pending: bookings.filter((b) => b.status === "Pending").length,
+      // All bookings are now automatically confirmed, no pending bookings
       cancelled: bookings.filter((b) => b.status === "Cancelled").length,
     };
 

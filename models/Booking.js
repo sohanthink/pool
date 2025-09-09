@@ -53,8 +53,8 @@ const bookingSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Confirmed", "Cancelled", "Completed"],
-      default: "Pending",
+      enum: ["Confirmed", "Cancelled", "Completed"],
+      default: "Confirmed",
     },
     notes: {
       type: String,
@@ -72,6 +72,17 @@ const bookingSchema = new mongoose.Schema(
     fromShareLink: {
       type: Boolean,
       default: false,
+    },
+    // Price information
+    price: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   {

@@ -22,6 +22,7 @@ import {
     AlertCircle
 } from "lucide-react"
 import { useRouter } from 'next/navigation';
+import BookingLinkModal from '@/components/BookingLinkModal';
 
 const PickleballDetails = ({ params }) => {
     const courtId = params.id
@@ -30,11 +31,10 @@ const PickleballDetails = ({ params }) => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [deleting, setDeleting] = useState(false);
-    const [shareLink, setShareLink] = useState('');
-    const [linkExpiry, setLinkExpiry] = useState('');
-    const [isLinkActive, setIsLinkActive] = useState(false);
-    const [generatingLink, setGeneratingLink] = useState(false);
-    const [deactivatingLink, setDeactivatingLink] = useState(false);
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [bookingLink, setBookingLink] = useState("");
+    const [isBookingLinkActive, setIsBookingLinkActive] = useState(false);
+    const [bookingLinkExpiry, setBookingLinkExpiry] = useState(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -47,12 +47,29 @@ const PickleballDetails = ({ params }) => {
                 const pickleballData = await pickleballRes.json()
                 setPickleball(pickleballData)
 
-                // Set share link status if available
-                if (pickleballData.isLinkActive && pickleballData.linkToken && pickleballData.linkExpiry) {
-                    setShareLink(`${window.location.origin}/pickleball/${courtId}/share/${pickleballData.linkToken}`);
-                    setLinkExpiry(new Date(pickleballData.linkExpiry).toLocaleString());
-                    setIsLinkActive(true);
+                // Check if there's an active booking link
+                if (pickleballData.isBookingLinkActive && pickleballData.bookingToken && pickleballData.bookingLinkExpiry) {
+                    const expiryDate = new Date(pickleballData.bookingLinkExpiry);
+                    const now = new Date();
+
+                    if (expiryDate > now) {
+                        // Link is still active
+                        setIsBookingLinkActive(true);
+                        setBookingLinkExpiry(expiryDate);
+                        setBookingLink(`${window.location.origin}/pickleball/${courtId}/book?token=${pickleballData.bookingToken}`);
+                    } else {
+                        // Link has expired
+                        setIsBookingLinkActive(false);
+                        setBookingLinkExpiry(null);
+                        setBookingLink("");
+                    }
+                } else {
+                    // No active booking link
+                    setIsBookingLinkActive(false);
+                    setBookingLinkExpiry(null);
+                    setBookingLink("");
                 }
+
 
                 // Fetch bookings for this pickleball court
                 const bookingsRes = await fetch(`/api/bookings?pickleballCourtId=${courtId}`)
@@ -70,6 +87,23 @@ const PickleballDetails = ({ params }) => {
         }
         fetchData()
     }, [courtId])
+
+    // Check for booking link expiry every minute
+    useEffect(() => {
+        if (!isBookingLinkActive || !bookingLinkExpiry) return;
+
+        const checkExpiry = () => {
+            const now = new Date();
+            if (now >= bookingLinkExpiry) {
+                setIsBookingLinkActive(false);
+                setBookingLinkExpiry(null);
+                setBookingLink("");
+            }
+        };
+
+        const interval = setInterval(checkExpiry, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [isBookingLinkActive, bookingLinkExpiry])
 
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading...</div>
@@ -98,64 +132,63 @@ const PickleballDetails = ({ params }) => {
         }
     };
 
-    const handleGenerateShareLink = async () => {
-        const expiryHours = prompt('Enter link expiry time in hours (default: 24):', '24');
-        if (!expiryHours) return;
 
-        setGeneratingLink(true);
+    // Booking link generation functions
+    const handleGenerateBookingLink = () => {
+        setIsBookingModalOpen(true);
+    };
+
+    const handleModalGenerateBookingLink = async (expiryHours, price) => {
         try {
-            const res = await fetch(`/api/pickleball/${courtId}/share-link`, {
+            const res = await fetch(`/api/pickleball/${courtId}/booking-link`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expiryHours: parseInt(expiryHours) || 24 }),
+                body: JSON.stringify({
+                    price: parseFloat(price) || 0,
+                    expiryHours: parseInt(expiryHours) || 24
+                }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Failed to generate link');
+                throw new Error(data.error || 'Failed to generate booking link');
             }
 
             const data = await res.json();
-            setShareLink(data.shareableUrl);
-            setLinkExpiry(new Date(data.linkExpiry).toLocaleString());
-            setIsLinkActive(true);
-            alert('Shareable link generated successfully!');
+            const generatedLink = data.bookingUrl || `${window.location.origin}/pickleball/${courtId}/book?token=${data.bookingToken}`;
+            const expiryDate = new Date(data.bookingLinkExpiry);
+
+            setBookingLink(generatedLink);
+            setIsBookingLinkActive(true);
+            setBookingLinkExpiry(expiryDate);
+            navigator.clipboard.writeText(generatedLink);
+            alert(`Booking link generated and copied to clipboard!\nPrice: $${data.price}\nExpires: ${expiryDate.toLocaleString()}`);
         } catch (err) {
-            alert(`Failed to generate link: ${err.message}`);
-        } finally {
-            setGeneratingLink(false);
+            alert(`Failed to generate booking link: ${err.message}`);
+            throw err;
         }
     };
 
     const handleDeactivateLink = async () => {
-        if (!window.confirm('Are you sure you want to deactivate this shareable link?')) return;
+        if (!window.confirm('Are you sure you want to deactivate this booking link? This action cannot be undone.')) return;
 
-        setDeactivatingLink(true);
         try {
-            const res = await fetch(`/api/pickleball/${courtId}/share-link`, {
+            const res = await fetch(`/api/pickleball/${courtId}/booking-link`, {
                 method: 'DELETE',
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Failed to deactivate link');
+                throw new Error(data.error || 'Failed to deactivate booking link');
             }
 
-            setShareLink('');
-            setLinkExpiry('');
-            setIsLinkActive(false);
-            alert('Shareable link deactivated successfully!');
+            // Clear the booking link state
+            setBookingLink("");
+            setIsBookingLinkActive(false);
+            setBookingLinkExpiry(null);
+            alert('Booking link deactivated successfully!');
         } catch (err) {
-            alert(`Failed to deactivate link: ${err.message}`);
-        } finally {
-            setDeactivatingLink(false);
-        }
-    };
-
-    const copyShareLink = () => {
-        if (shareLink) {
-            navigator.clipboard.writeText(shareLink);
-            alert('Shareable link copied to clipboard!');
+            alert(`Failed to deactivate booking link: ${err.message}`);
         }
     };
 
@@ -179,22 +212,10 @@ const PickleballDetails = ({ params }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {isLinkActive ? (
-                        <>
-                            <Button variant="outline" onClick={copyShareLink} disabled={!shareLink}>
-                                <LinkIcon className="h-4 w-4 mr-2" />
-                                Copy Share Link
-                            </Button>
-                            <Button variant="destructive" onClick={handleDeactivateLink} disabled={deactivatingLink}>
-                                {deactivatingLink ? 'Deactivating...' : 'Deactivate Link'}
-                            </Button>
-                        </>
-                    ) : (
-                        <Button variant="outline" onClick={handleGenerateShareLink} disabled={generatingLink}>
-                            <LinkIcon className="h-4 w-4 mr-2" />
-                            {generatingLink ? 'Generating...' : 'Generate Share Link'}
-                        </Button>
-                    )}
+                    <Button variant="default" onClick={handleGenerateBookingLink} className="bg-green-600 hover:bg-green-700">
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        Generate Booking Link
+                    </Button>
 
                     <Button variant="outline" asChild>
                         <Link href={`/dashboard/admin/pickleball/${courtId}/edit`}>
@@ -208,6 +229,43 @@ const PickleballDetails = ({ params }) => {
                     </Button>
                 </div>
             </div>
+
+            {isBookingLinkActive && bookingLink && (
+                <Card className="border-blue-200 bg-blue-50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-blue-800">
+                            <LinkIcon className="h-5 w-5" />
+                            Active Booking Link
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-green-700 border-green-300">
+                                Active
+                            </Badge>
+                            {bookingLinkExpiry && (
+                                <span className="text-sm text-blue-700">
+                                    Expires: {bookingLinkExpiry.toLocaleString()}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={bookingLink}
+                                readOnly
+                                className="flex-1 px-3 py-2 border border-blue-300 rounded-md bg-white text-sm"
+                            />
+                            <Button size="sm" onClick={() => navigator.clipboard.writeText(bookingLink)}>
+                                Copy Link
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={handleDeactivateLink}>
+                                Deactivate
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Court Details */}
@@ -319,7 +377,7 @@ const PickleballDetails = ({ params }) => {
                                                     {new Date(booking.date).toLocaleDateString()} at {booking.time}
                                                 </p>
                                             </div>
-                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : booking.status === 'Pending' ? 'secondary' : 'destructive'}>
+                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : 'destructive'}>
                                                 {booking.status}
                                             </Badge>
                                         </div>
@@ -384,29 +442,19 @@ const PickleballDetails = ({ params }) => {
                         </CardContent>
                     </Card>
 
-                    {/* Share Link Status */}
-                    {isLinkActive && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <LinkIcon className="h-5 w-5" />
-                                    Share Link Status
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="space-y-2">
-                                    <p className="text-sm text-gray-600">Expires</p>
-                                    <p className="text-sm font-medium">{linkExpiry}</p>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={copyShareLink} className="w-full">
-                                    <LinkIcon className="h-4 w-4 mr-2" />
-                                    Copy Link
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
             </div>
+
+            {/* Booking Link Modal */}
+            <BookingLinkModal
+                isOpen={isBookingModalOpen}
+                onClose={() => setIsBookingModalOpen(false)}
+                onGenerate={handleModalGenerateBookingLink}
+                title="Generate Pickleball Court Booking Link"
+                defaultExpiryHours={24}
+                defaultPrice={0}
+                expiryUnit="hours"
+            />
         </div>
     )
 }

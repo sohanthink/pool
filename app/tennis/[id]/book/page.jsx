@@ -150,7 +150,27 @@ const TennisBookingPage = () => {
                 const res = await fetch(`/api/tennis/${courtId}/availability?date=${dateStr}`)
                 if (!res.ok) throw new Error('Failed to fetch availability')
                 const data = await res.json()
-                setAvailableSlots(data.availableSlots)
+
+                // If booking through a booking link, filter slots based on link expiry
+                let filteredSlots = data.availableSlots
+                if (bookingToken && courtData?.bookingLinkExpiry) {
+                    const linkExpiry = new Date(courtData.bookingLinkExpiry)
+                    const selectedDateObj = new Date(selectedDate)
+
+                    // If the selected date is the same as link expiry date, filter times
+                    if (selectedDateObj.toDateString() === linkExpiry.toDateString()) {
+                        filteredSlots = data.availableSlots.filter(slot => {
+                            const slotTime = new Date(`${dateStr}T${slot}`)
+                            return slotTime <= linkExpiry
+                        })
+                    }
+                    // If selected date is after link expiry, show no slots
+                    else if (selectedDateObj > linkExpiry) {
+                        filteredSlots = []
+                    }
+                }
+
+                setAvailableSlots(filteredSlots)
                 setAllSlots(data.allSlots)
             } catch (err) {
                 setErrorSlots('Failed to load available slots')
@@ -161,16 +181,22 @@ const TennisBookingPage = () => {
             }
         }
         fetchSlots()
-    }, [courtId, selectedDate])
+    }, [courtId, selectedDate, bookingToken, courtData?.bookingLinkExpiry])
 
-    // Fix calculatePrice to handle both string and number price types
+    // Calculate price - prioritize bookingPrice if available, otherwise use regular price
     const calculatePrice = () => {
         if (!courtData) return 0
         let hourlyRate = 0
-        if (typeof courtData.price === 'string') {
-            hourlyRate = parseInt(courtData.price.replace('$', ''))
-        } else if (typeof courtData.price === 'number') {
-            hourlyRate = courtData.price
+
+        // Use bookingPrice if available (from booking link), otherwise use regular price
+        if (courtData.bookingPrice !== undefined && courtData.bookingPrice > 0) {
+            hourlyRate = courtData.bookingPrice
+        } else {
+            if (typeof courtData.price === 'string') {
+                hourlyRate = parseInt(courtData.price.replace('$', ''))
+            } else if (typeof courtData.price === 'number') {
+                hourlyRate = courtData.price
+            }
         }
         return hourlyRate * parseInt(duration)
     }
@@ -201,9 +227,11 @@ const TennisBookingPage = () => {
                     date: dateStr,
                     time: selectedTime,
                     duration: parseInt(duration),
+                    price: courtData.bookingPrice !== undefined ? courtData.bookingPrice : courtData.price,
                     totalPrice: calculatePrice(),
                     guests: formData.players,
                     notes: formData.notes,
+                    fromBookingLink: !!bookingToken, // True if booking through a booking link
                 })
             })
             if (!res.ok) {
@@ -295,8 +323,13 @@ const TennisBookingPage = () => {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-2xl font-bold text-green-600">{courtData.price}</div>
+                                        <div className="text-2xl font-bold text-green-600">
+                                            ${courtData.bookingPrice !== undefined ? courtData.bookingPrice : courtData.price}
+                                        </div>
                                         <div className="text-sm text-gray-600">per hour</div>
+                                        {courtData.bookingPrice !== undefined && courtData.bookingPrice > 0 && (
+                                            <div className="text-xs text-blue-600 font-medium">Special booking price</div>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
@@ -309,16 +342,19 @@ const TennisBookingPage = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-3 gap-4">
-                                    {courtData.images.map((image, index) => (
-                                        <div key={index} className="aspect-video bg-gradient-to-br from-green-400 to-green-600 rounded-lg relative">
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="text-white text-center">
-                                                    <Target className="h-8 w-8 mx-auto mb-1 opacity-80" />
-                                                    <p className="text-xs opacity-80">Photo {index + 1}</p>
-                                                </div>
+                                    {courtData.images && courtData.images.length > 0 ? (
+                                        courtData.images.map((image, index) => (
+                                            <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                                <img
+                                                    src={image}
+                                                    alt={`Court photo ${index + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    ) : (
+                                        <div className="col-span-3 text-sm text-gray-500">No images available.</div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -384,7 +420,18 @@ const TennisBookingPage = () => {
                                             disabled={(date) => {
                                                 const today = new Date()
                                                 today.setHours(0, 0, 0, 0)
-                                                return date < today
+
+                                                // Disable past dates
+                                                if (date < today) return true
+
+                                                // If booking through a booking link, disable dates after link expiry
+                                                if (bookingToken && courtData?.bookingLinkExpiry) {
+                                                    const linkExpiry = new Date(courtData.bookingLinkExpiry)
+                                                    linkExpiry.setHours(23, 59, 59, 999) // End of expiry day
+                                                    return date > linkExpiry
+                                                }
+
+                                                return false
                                             }}
                                         />
                                     </div>

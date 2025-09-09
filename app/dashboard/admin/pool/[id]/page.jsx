@@ -22,6 +22,7 @@ import {
     AlertCircle
 } from "lucide-react"
 import { useRouter } from 'next/navigation';
+import BookingLinkModal from '@/components/BookingLinkModal';
 
 const PoolDetails = ({ params }) => {
     const poolId = params.id
@@ -30,11 +31,10 @@ const PoolDetails = ({ params }) => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [deleting, setDeleting] = useState(false);
-    const [shareLink, setShareLink] = useState('');
-    const [linkExpiry, setLinkExpiry] = useState('');
-    const [isLinkActive, setIsLinkActive] = useState(false);
-    const [generatingLink, setGeneratingLink] = useState(false);
-    const [deactivatingLink, setDeactivatingLink] = useState(false);
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [bookingLink, setBookingLink] = useState("");
+    const [isBookingLinkActive, setIsBookingLinkActive] = useState(false);
+    const [bookingLinkExpiry, setBookingLinkExpiry] = useState(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -47,12 +47,29 @@ const PoolDetails = ({ params }) => {
                 const poolData = await poolRes.json()
                 setPool(poolData)
 
-                // Set share link status if available
-                if (poolData.isLinkActive && poolData.linkToken && poolData.linkExpiry) {
-                    setShareLink(`${window.location.origin}/pool/${poolId}/share/${poolData.linkToken}`);
-                    setLinkExpiry(new Date(poolData.linkExpiry).toLocaleString());
-                    setIsLinkActive(true);
+                // Check if there's an active booking link
+                if (poolData.isBookingLinkActive && poolData.bookingToken && poolData.bookingLinkExpiry) {
+                    const expiryDate = new Date(poolData.bookingLinkExpiry);
+                    const now = new Date();
+
+                    if (expiryDate > now) {
+                        // Link is still active
+                        setIsBookingLinkActive(true);
+                        setBookingLinkExpiry(expiryDate);
+                        setBookingLink(`${window.location.origin}/pool/${poolId}/book?token=${poolData.bookingToken}`);
+                    } else {
+                        // Link has expired
+                        setIsBookingLinkActive(false);
+                        setBookingLinkExpiry(null);
+                        setBookingLink("");
+                    }
+                } else {
+                    // No active booking link
+                    setIsBookingLinkActive(false);
+                    setBookingLinkExpiry(null);
+                    setBookingLink("");
                 }
+
 
                 // Fetch bookings for this pool
                 const bookingsRes = await fetch(`/api/bookings?poolId=${poolId}`)
@@ -70,6 +87,23 @@ const PoolDetails = ({ params }) => {
         }
         fetchData()
     }, [poolId])
+
+    // Check for booking link expiry every minute
+    useEffect(() => {
+        if (!isBookingLinkActive || !bookingLinkExpiry) return;
+
+        const checkExpiry = () => {
+            const now = new Date();
+            if (now >= bookingLinkExpiry) {
+                setIsBookingLinkActive(false);
+                setBookingLinkExpiry(null);
+                setBookingLink("");
+            }
+        };
+
+        const interval = setInterval(checkExpiry, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [isBookingLinkActive, bookingLinkExpiry])
 
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading...</div>
@@ -98,64 +132,63 @@ const PoolDetails = ({ params }) => {
         }
     };
 
-    const handleGenerateShareLink = async () => {
-        const expiryHours = prompt('Enter link expiry time in hours (default: 24):', '24');
-        if (!expiryHours) return;
 
-        setGeneratingLink(true);
+    // Booking link generation functions
+    const handleGenerateBookingLink = () => {
+        setIsBookingModalOpen(true);
+    };
+
+    const handleModalGenerateBookingLink = async (expiryHours, price) => {
         try {
-            const res = await fetch(`/api/pools/${poolId}/share-link`, {
+            const res = await fetch(`/api/pools/${poolId}/booking-link`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expiryHours: parseInt(expiryHours) || 24 }),
+                body: JSON.stringify({
+                    price: parseFloat(price) || 0,
+                    expiryHours: parseInt(expiryHours) || 24
+                }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Failed to generate link');
+                throw new Error(data.error || 'Failed to generate booking link');
             }
 
             const data = await res.json();
-            setShareLink(data.shareableUrl);
-            setLinkExpiry(new Date(data.linkExpiry).toLocaleString());
-            setIsLinkActive(true);
-            alert('Shareable link generated successfully!');
+            const generatedLink = data.bookingUrl || `${window.location.origin}/pool/${poolId}/book?token=${data.bookingToken}`;
+            const expiryDate = new Date(data.bookingLinkExpiry);
+
+            setBookingLink(generatedLink);
+            setIsBookingLinkActive(true);
+            setBookingLinkExpiry(expiryDate);
+            navigator.clipboard.writeText(generatedLink);
+            alert(`Booking link generated and copied to clipboard!\nPrice: $${data.price}\nExpires: ${expiryDate.toLocaleString()}`);
         } catch (err) {
-            alert(`Failed to generate link: ${err.message}`);
-        } finally {
-            setGeneratingLink(false);
+            alert(`Failed to generate booking link: ${err.message}`);
+            throw err;
         }
     };
 
     const handleDeactivateLink = async () => {
-        if (!window.confirm('Are you sure you want to deactivate this shareable link?')) return;
+        if (!window.confirm('Are you sure you want to deactivate this booking link? This action cannot be undone.')) return;
 
-        setDeactivatingLink(true);
         try {
-            const res = await fetch(`/api/pools/${poolId}/share-link`, {
+            const res = await fetch(`/api/pools/${poolId}/booking-link`, {
                 method: 'DELETE',
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Failed to deactivate link');
+                throw new Error(data.error || 'Failed to deactivate booking link');
             }
 
-            setShareLink('');
-            setLinkExpiry('');
-            setIsLinkActive(false);
-            alert('Shareable link deactivated successfully!');
+            // Clear the booking link state
+            setBookingLink("");
+            setIsBookingLinkActive(false);
+            setBookingLinkExpiry(null);
+            alert('Booking link deactivated successfully!');
         } catch (err) {
-            alert(`Failed to deactivate link: ${err.message}`);
-        } finally {
-            setDeactivatingLink(false);
-        }
-    };
-
-    const copyShareLink = () => {
-        if (shareLink) {
-            navigator.clipboard.writeText(shareLink);
-            alert('Shareable link copied to clipboard!');
+            alert(`Failed to deactivate booking link: ${err.message}`);
         }
     };
 
@@ -179,22 +212,10 @@ const PoolDetails = ({ params }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {isLinkActive ? (
-                        <>
-                            <Button variant="outline" onClick={copyShareLink} disabled={!shareLink}>
-                                <LinkIcon className="h-4 w-4 mr-2" />
-                                Copy Share Link
-                            </Button>
-                            <Button variant="destructive" onClick={handleDeactivateLink} disabled={deactivatingLink}>
-                                {deactivatingLink ? 'Deactivating...' : 'Deactivate Link'}
-                            </Button>
-                        </>
-                    ) : (
-                        <Button variant="outline" onClick={handleGenerateShareLink} disabled={generatingLink}>
-                            <LinkIcon className="h-4 w-4 mr-2" />
-                            {generatingLink ? 'Generating...' : 'Generate Share Link'}
-                        </Button>
-                    )}
+                    <Button variant="default" onClick={handleGenerateBookingLink} className="bg-green-600 hover:bg-green-700">
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        Generate Booking Link
+                    </Button>
 
                     <Button variant="outline" asChild>
                         <Link href={`/dashboard/admin/pool/${poolId}/edit`}>
@@ -209,13 +230,12 @@ const PoolDetails = ({ params }) => {
                 </div>
             </div>
 
-            {/* Share Link Status */}
-            {isLinkActive && (
-                <Card className="border-green-200 bg-green-50">
+            {isBookingLinkActive && bookingLink && (
+                <Card className="border-blue-200 bg-blue-50">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-green-800">
+                        <CardTitle className="flex items-center gap-2 text-blue-800">
                             <LinkIcon className="h-5 w-5" />
-                            Active Share Link
+                            Active Booking Link
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -223,19 +243,24 @@ const PoolDetails = ({ params }) => {
                             <Badge variant="outline" className="text-green-700 border-green-300">
                                 Active
                             </Badge>
-                            <span className="text-sm text-green-700">
-                                Expires: {linkExpiry}
-                            </span>
+                            {bookingLinkExpiry && (
+                                <span className="text-sm text-blue-700">
+                                    Expires: {bookingLinkExpiry.toLocaleString()}
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
-                                value={shareLink}
+                                value={bookingLink}
                                 readOnly
-                                className="flex-1 px-3 py-2 border border-green-300 rounded-md bg-white text-sm"
+                                className="flex-1 px-3 py-2 border border-blue-300 rounded-md bg-white text-sm"
                             />
-                            <Button size="sm" onClick={copyShareLink}>
-                                Copy
+                            <Button size="sm" onClick={() => navigator.clipboard.writeText(bookingLink)}>
+                                Copy Link
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={handleDeactivateLink}>
+                                Deactivate
                             </Button>
                         </div>
                     </CardContent>
@@ -422,8 +447,19 @@ const PoolDetails = ({ params }) => {
                     </Card>
                 </div>
             </div>
+
+            {/* Booking Link Modal */}
+            <BookingLinkModal
+                isOpen={isBookingModalOpen}
+                onClose={() => setIsBookingModalOpen(false)}
+                onGenerate={handleModalGenerateBookingLink}
+                title="Generate Pool Booking Link"
+                defaultExpiryHours={24}
+                defaultPrice={0}
+                expiryUnit="hours"
+            />
         </div>
-    )
+    );
 }
 
-export default PoolDetails 
+export default PoolDetails; 

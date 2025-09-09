@@ -191,7 +191,7 @@ const SuperadminPickleballDetails = ({ params }) => {
                                                     {new Date(booking.date).toLocaleDateString()} at {booking.time}
                                                 </p>
                                             </div>
-                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : booking.status === 'Pending' ? 'secondary' : 'destructive'}>
+                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : 'destructive'}>
                                                 {booking.status}
                                             </Badge>
                                         </div>

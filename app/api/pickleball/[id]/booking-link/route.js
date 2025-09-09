@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
     const resolvedParams = await params;
     const { id } = resolvedParams;
     const body = await request.json();
-    const { expiryDays = 30 } = body;
+    const { expiryHours = 24, price = 0 } = body;
 
     const pickleball = await Pickleball.findById(id);
     if (!pickleball) {
@@ -34,7 +34,7 @@ export async function POST(request, { params }) {
     // Generate a unique token
     const bookingToken = crypto.randomBytes(32).toString("hex");
     const bookingLinkExpiry = new Date();
-    bookingLinkExpiry.setDate(bookingLinkExpiry.getDate() + expiryDays);
+    bookingLinkExpiry.setHours(bookingLinkExpiry.getHours() + expiryHours);
 
     // Update the pickleball court with booking link information
     const updatedPickleball = await Pickleball.findByIdAndUpdate(
@@ -43,6 +43,7 @@ export async function POST(request, { params }) {
         bookingToken,
         bookingLinkExpiry,
         isBookingLinkActive: true,
+        bookingPrice: parseFloat(price) || 0,
       },
       { new: true }
     );
@@ -51,6 +52,7 @@ export async function POST(request, { params }) {
       bookingToken,
       bookingLinkExpiry,
       bookingUrl: `${process.env.NEXTAUTH_URL}/pickleball/${id}/book`,
+      price: parseFloat(price) || 0,
     });
   } catch (error) {
     console.error("Error generating booking link:", error);
@@ -92,6 +94,7 @@ export async function DELETE(request, { params }) {
         bookingToken: null,
         bookingLinkExpiry: null,
         isBookingLinkActive: false,
+        bookingPrice: 0,
       },
       { new: true }
     );

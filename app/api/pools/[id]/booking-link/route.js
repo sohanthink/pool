@@ -16,7 +16,7 @@ export async function POST(request, context) {
       );
     }
 
-    const { expiryHours = 24 } = await request.json();
+    const { expiryHours = 24, price = 0 } = await request.json();
 
     await dbConnect();
 
@@ -38,6 +38,7 @@ export async function POST(request, context) {
     pool.bookingToken = bookingToken;
     pool.bookingLinkExpiry = bookingLinkExpiry;
     pool.isBookingLinkActive = true;
+    pool.bookingPrice = parseFloat(price) || 0;
 
     await pool.save();
 
@@ -51,6 +52,7 @@ export async function POST(request, context) {
       bookingUrl,
       bookingLinkExpiry: pool.bookingLinkExpiry,
       expiryHours: parseInt(expiryHours),
+      price: pool.bookingPrice,
     });
   } catch (error) {
     console.error("Error generating booking link:", error);
@@ -85,6 +87,7 @@ export async function DELETE(request, context) {
     pool.isBookingLinkActive = false;
     pool.bookingToken = null;
     pool.bookingLinkExpiry = null;
+    pool.bookingPrice = 0;
 
     await pool.save();
 

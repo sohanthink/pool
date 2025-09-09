@@ -77,21 +77,6 @@ const PickleballPage = () => {
         }
     }
 
-    const handleBookingLink = async (id) => {
-        try {
-            const res = await fetch(`/api/pickleball/${id}/booking-link`, {
-                method: 'POST'
-            })
-            if (!res.ok) throw new Error('Failed to generate booking link')
-            const data = await res.json()
-
-            const bookingUrl = `${window.location.origin}/pickleball/${id}/book`
-            navigator.clipboard.writeText(bookingUrl)
-            alert('Booking link copied to clipboard!')
-        } catch (err) {
-            setError('Failed to generate booking link')
-        }
-    }
 
     const filteredPickleballCourts = pickleballCourts.filter(court => {
         const matchesSearch = court.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -253,13 +238,6 @@ const PickleballPage = () => {
                                 </Button> */}
                                 {/* <Button
                                     size="sm"
-                                    variant="outline"
-                                    onClick={() => handleBookingLink(court._id)}
-                                >
-                                    <LinkIcon className="h-4 w-4" />
-                                </Button> */}
-                                {/* <Button
-                                    size="sm"
                                     variant="destructive"
                                     onClick={() => handleDelete(court._id)}
                                 >
@@ -286,6 +264,7 @@ const PickleballPage = () => {
                     </CardContent>
                 </Card>
             )}
+
         </div>
     )
 }

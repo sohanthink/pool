@@ -196,6 +196,31 @@ export async function POST(request) {
       linkExpiry = pickleballCourt.linkExpiry;
     }
 
+    // Validate booking link if booking is from a booking link
+    if (body.fromBookingLink) {
+      const venue = pool || tennisCourt || pickleballCourt;
+      if (
+        !venue.isBookingLinkActive ||
+        !venue.bookingToken ||
+        !venue.bookingLinkExpiry
+      ) {
+        return NextResponse.json(
+          { error: "Booking link is not active or has expired" },
+          { status: 400 }
+        );
+      }
+
+      // Check if booking link has expired
+      const now = new Date();
+      const bookingLinkExpiry = new Date(venue.bookingLinkExpiry);
+      if (now > bookingLinkExpiry) {
+        return NextResponse.json(
+          { error: "Booking link has expired" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validate share link expiry if booking is from share link
     if (body.fromShareLink && linkExpiry) {
       const bookingDate = new Date(body.date);
@@ -289,9 +314,12 @@ export async function POST(request) {
       duration: body.duration,
       guests: body.guests,
       notes: body.notes,
+      status: "Confirmed", // All bookings are automatically confirmed
       createdBy: body.createdBy || "customer",
       adminId: body.adminId,
       fromShareLink: body.fromShareLink || false,
+      price: body.price || 0,
+      totalPrice: body.totalPrice || 0,
     };
 
     if (body.poolId) {
@@ -308,24 +336,39 @@ export async function POST(request) {
 
     const savedBooking = await booking.save();
 
-    // Update pool, tennis court, or pickleball court statistics
+    // Update pool, tennis court, or pickleball court statistics and deactivate booking link
     if (body.poolId) {
       await Pool.findByIdAndUpdate(body.poolId, {
         $inc: {
           totalBookings: 1,
         },
+        // Deactivate booking link after successful booking (single-use)
+        isBookingLinkActive: false,
+        bookingToken: null,
+        bookingLinkExpiry: null,
+        bookingPrice: 0,
       });
     } else if (body.tennisCourtId) {
       await Tennis.findByIdAndUpdate(body.tennisCourtId, {
         $inc: {
           totalBookings: 1,
         },
+        // Deactivate booking link after successful booking (single-use)
+        isBookingLinkActive: false,
+        bookingToken: null,
+        bookingLinkExpiry: null,
+        bookingPrice: 0,
       });
     } else if (body.pickleballCourtId) {
       await Pickleball.findByIdAndUpdate(body.pickleballCourtId, {
         $inc: {
           totalBookings: 1,
         },
+        // Deactivate booking link after successful booking (single-use)
+        isBookingLinkActive: false,
+        bookingToken: null,
+        bookingLinkExpiry: null,
+        bookingPrice: 0,
       });
     }
 

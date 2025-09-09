@@ -11,8 +11,6 @@ import {
     Search,
     Filter,
     Eye,
-    CheckCircle,
-    XCircle,
     Clock,
     User,
     Phone,
@@ -89,8 +87,6 @@ const BookingsPage = () => {
         switch (status) {
             case "Confirmed":
                 return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmed</Badge>
-            case "Pending":
-                return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
             case "Cancelled":
                 return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelled</Badge>
             default:
@@ -98,21 +94,6 @@ const BookingsPage = () => {
         }
     }
 
-    // Handle status change
-    const handleStatusChange = async (bookingId, newStatus) => {
-        try {
-            const res = await fetch(`/api/bookings/${bookingId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            if (!res.ok) throw new Error('Failed to update status');
-            await fetchBookings(); // Refresh bookings after update
-            alert(`Booking status updated to ${newStatus}`);
-        } catch (err) {
-            alert('Failed to update booking status');
-        }
-    }
 
     if (status === 'loading' || !session?.user?.email) return <div className="p-8 text-center text-gray-500">Loading user...</div>;
     if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>
@@ -162,7 +143,6 @@ const BookingsPage = () => {
                             <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="Confirmed">Confirmed</SelectItem>
-                                <SelectItem value="Pending">Pending</SelectItem>
                                 <SelectItem value="Cancelled">Cancelled</SelectItem>
                             </SelectContent>
                         </Select>
@@ -246,7 +226,7 @@ const BookingsPage = () => {
                 {filteredBookings.map((booking) => (
                     <Card key={booking._id || booking.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* Booking Info */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
@@ -341,33 +321,6 @@ const BookingsPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Actions */}
-                                <div className="space-y-3">
-                                    <h4 className="font-medium text-gray-800">Actions</h4>
-                                    <div className="space-y-2">
-                                        {booking.status === "Pending" && (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    className="w-full bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleStatusChange(booking._id || booking.id, "Confirmed")}
-                                                >
-                                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                                    Confirm
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    className="w-full"
-                                                    onClick={() => handleStatusChange(booking._id || booking.id, "Cancelled")}
-                                                >
-                                                    <XCircle className="h-4 w-4 mr-2" />
-                                                    Cancel
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
 
                             {/* Notes */}

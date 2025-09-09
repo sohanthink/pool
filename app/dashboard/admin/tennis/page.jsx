@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Target, Plus, Search, Filter, Eye, Edit, Trash2, Share, Link as LinkIcon } from "lucide-react"
+import { Target, Plus, Search, Filter, Eye, Edit, Trash2, Share } from "lucide-react"
 import Link from 'next/link'
 
 const TennisCourtsPage = () => {
@@ -68,22 +68,6 @@ const TennisCourtsPage = () => {
         }
     }
 
-    const handleBookingLink = async (id) => {
-        try {
-            const res = await fetch(`/api/tennis/${id}/booking-link`, {
-                method: 'POST'
-            })
-            if (!res.ok) throw new Error('Failed to generate booking link')
-            const data = await res.json()
-
-            // Copy to clipboard
-            const bookingUrl = `${window.location.origin}/tennis/${id}/book?token=${data.token}`
-            await navigator.clipboard.writeText(bookingUrl)
-            alert('Booking link copied to clipboard!')
-        } catch (err) {
-            setError('Failed to generate booking link')
-        }
-    }
 
     // Filter tennis courts
     const filteredTennisCourts = tennisCourts.filter(court => {
@@ -237,14 +221,6 @@ const TennisCourtsPage = () => {
                                     {/* <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => handleBookingLink(court._id)}
-                                    >
-                                        <LinkIcon className="h-4 w-4 mr-1" />
-                                        Book Link
-                                    </Button> */}
-                                    {/* <Button
-                                        variant="outline"
-                                        size="sm"
                                         onClick={() => handleDelete(court._id)}
                                         className="text-red-600 hover:text-red-700"
                                     >
@@ -281,6 +257,7 @@ const TennisCourtsPage = () => {
                     </CardContent>
                 </Card>
             )}
+
         </div>
     )
 }

@@ -101,6 +101,13 @@ const poolSchema = new mongoose.Schema(
       default: null,
       required: false,
     },
+    // Price for booking link (optional)
+    bookingPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+      required: false,
+    },
   },
   {
     timestamps: true,

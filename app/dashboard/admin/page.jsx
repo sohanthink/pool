@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
     const totalPools = pools.length
     const totalTennisCourts = tennisCourts.length
     const totalPickleballCourts = pickleballCourts.length
-    const pendingBookings = bookings.filter(b => b.status === 'Pending').length
+    // All bookings are now automatically confirmed, no pending bookings
     const confirmedBookings = bookings.filter(b => b.status === 'Confirmed').length
     const avgRating = (pools.length + tennisCourts.length + pickleballCourts.length) ? ((pools.reduce((sum, p) => sum + (p.rating || 0), 0) + tennisCourts.reduce((sum, t) => sum + (t.rating || 0), 0) + pickleballCourts.reduce((sum, p) => sum + (p.rating || 0), 0)) / (pools.length + tennisCourts.length + pickleballCourts.length)).toFixed(2) : 'N/A'
 
@@ -255,7 +255,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
@@ -275,17 +275,6 @@ export default function AdminDashboardPage() {
                                 <p className="text-2xl font-bold">{confirmedBookings}</p>
                             </div>
                             <Calendar className="h-8 w-8 opacity-80" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-90">Pending Bookings</p>
-                                <p className="text-2xl font-bold">{pendingBookings}</p>
-                            </div>
-                            <Clock className="h-8 w-8 opacity-80" />
                         </div>
                     </CardContent>
                 </Card>

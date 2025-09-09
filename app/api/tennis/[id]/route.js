@@ -9,6 +9,7 @@ export async function GET(request, context) {
     await dbConnect();
     const params = await context.params;
     const { id } = params;
+
     const tennisCourt = await Tennis.findById(id);
 
     if (!tennisCourt) {
@@ -24,9 +25,8 @@ export async function GET(request, context) {
     const confirmedBookings = bookings.filter(
       (b) => b.status === "Confirmed"
     ).length;
-    const pendingBookings = bookings.filter(
-      (b) => b.status === "Pending"
-    ).length;
+    // All bookings are now automatically confirmed, no pending bookings
+    const pendingBookings = 0; // No pending bookings since auto-approval
     const cancelledBookings = bookings.filter(
       (b) => b.status === "Cancelled"
     ).length;

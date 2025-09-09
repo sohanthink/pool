@@ -16,7 +16,7 @@ export async function POST(request, context) {
       );
     }
 
-    const { expiryHours = 24 } = await request.json();
+    const { expiryHours = 24, price = 0 } = await request.json();
 
     await dbConnect();
 
@@ -41,6 +41,7 @@ export async function POST(request, context) {
     court.bookingToken = bookingToken;
     court.bookingLinkExpiry = bookingLinkExpiry;
     court.isBookingLinkActive = true;
+    court.bookingPrice = parseFloat(price) || 0;
 
     await court.save();
 
@@ -54,6 +55,7 @@ export async function POST(request, context) {
       bookingUrl,
       bookingLinkExpiry: court.bookingLinkExpiry,
       expiryHours: parseInt(expiryHours),
+      price: court.bookingPrice,
     });
   } catch (error) {
     console.error("Error generating booking link:", error);
@@ -91,6 +93,7 @@ export async function DELETE(request, context) {
     court.isBookingLinkActive = false;
     court.bookingToken = null;
     court.bookingLinkExpiry = null;
+    court.bookingPrice = 0;
 
     await court.save();
 

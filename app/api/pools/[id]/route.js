@@ -9,6 +9,7 @@ export async function GET(request, context) {
     await dbConnect();
     const params = await context.params;
     const { id } = params;
+
     const pool = await Pool.findById(id);
 
     if (!pool) {
@@ -21,9 +22,7 @@ export async function GET(request, context) {
     const confirmedBookings = bookings.filter(
       (b) => b.status === "Confirmed"
     ).length;
-    const pendingBookings = bookings.filter(
-      (b) => b.status === "Pending"
-    ).length;
+    // All bookings are now automatically confirmed, no pending bookings
     const cancelledBookings = bookings.filter(
       (b) => b.status === "Cancelled"
     ).length;
@@ -52,7 +51,6 @@ export async function GET(request, context) {
       ...poolObject,
       totalBookings,
       confirmedBookings,
-      pendingBookings,
       cancelledBookings,
       recentBookings,
       // Include link fields for debugging

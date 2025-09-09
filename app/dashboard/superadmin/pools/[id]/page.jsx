@@ -277,8 +277,8 @@ const SuperadminPoolDetailsPage = () => {
                             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm font-medium text-gray-600">Pending</p>
-                                        <p className="text-2xl font-bold text-gray-900">{pool.pendingBookings || 0}</p>
+                                        <p className="text-sm font-medium text-gray-600">Confirmed</p>
+                                        <p className="text-2xl font-bold text-gray-900">{pool.confirmedBookings || 0}</p>
                                     </div>
                                     <AlertCircle className="h-8 w-8 text-yellow-600" />
                                 </div>
@@ -320,9 +320,7 @@ const SuperadminPoolDetailsPage = () => {
                                                     <Badge className={
                                                         booking.status === 'Confirmed'
                                                             ? 'bg-green-100 text-green-800'
-                                                            : booking.status === 'Pending'
-                                                                ? 'bg-yellow-100 text-yellow-800'
-                                                                : 'bg-red-100 text-red-800'
+                                                            : 'bg-red-100 text-red-800'
                                                     }>
                                                         {booking.status}
                                                     </Badge>

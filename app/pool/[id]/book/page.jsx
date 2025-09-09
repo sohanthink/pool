@@ -150,7 +150,34 @@ const BookingPage = () => {
                 const res = await fetch(`/api/pools/${poolId}/availability?date=${dateStr}`)
                 if (!res.ok) throw new Error('Failed to fetch availability')
                 const data = await res.json()
-                setAvailableSlots(data.availableSlots)
+
+                // If booking through a booking link, filter slots based on link expiry
+                let filteredSlots = data.availableSlots
+                if (bookingToken && poolData?.bookingLinkExpiry) {
+                    const linkExpiry = new Date(poolData.bookingLinkExpiry)
+                    const selectedDateObj = new Date(selectedDate)
+
+                    // If the selected date is the same as link expiry date, filter times
+                    if (selectedDateObj.toDateString() === linkExpiry.toDateString()) {
+                        filteredSlots = data.availableSlots.filter(slot => {
+                            // Convert 12-hour format to 24-hour format for Date parsing
+                            const [time, period] = slot.split(' ')
+                            const [hours, minutes] = time.split(':')
+                            let hour24 = parseInt(hours)
+                            if (period === 'PM' && hour24 !== 12) hour24 += 12
+                            if (period === 'AM' && hour24 === 12) hour24 = 0
+
+                            const slotTime = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minutes}:00`)
+                            return slotTime <= linkExpiry
+                        })
+                    }
+                    // If selected date is after link expiry, show no slots
+                    else if (selectedDateObj > linkExpiry) {
+                        filteredSlots = []
+                    }
+                }
+
+                setAvailableSlots(filteredSlots)
                 setAllSlots(data.allSlots)
             } catch (err) {
                 setErrorSlots('Failed to load available slots')
@@ -161,16 +188,20 @@ const BookingPage = () => {
             }
         }
         fetchSlots()
-    }, [poolId, selectedDate])
+    }, [poolId, selectedDate, bookingToken, poolData?.bookingLinkExpiry])
 
-    // Fix calculatePrice to handle both string and number price types
+    // Calculate price based on booking price (if set) or default pool price
     const calculatePrice = () => {
         if (!poolData) return 0
         let hourlyRate = 0
-        if (typeof poolData.price === 'string') {
-            hourlyRate = parseInt(poolData.price.replace('$', ''))
-        } else if (typeof poolData.price === 'number') {
-            hourlyRate = poolData.price
+
+        // Use booking price if available (from booking link), otherwise use default pool price
+        const priceToUse = poolData.bookingPrice !== undefined ? poolData.bookingPrice : poolData.price
+
+        if (typeof priceToUse === 'string') {
+            hourlyRate = parseInt(priceToUse.replace('$', ''))
+        } else if (typeof priceToUse === 'number') {
+            hourlyRate = priceToUse
         }
         return hourlyRate * parseInt(duration)
     }
@@ -201,9 +232,11 @@ const BookingPage = () => {
                     date: dateStr,
                     time: selectedTime,
                     duration: parseInt(duration),
+                    price: poolData.bookingPrice !== undefined ? poolData.bookingPrice : poolData.price,
                     totalPrice: calculatePrice(),
                     guests: formData.guests,
                     notes: formData.notes,
+                    fromBookingLink: !!bookingToken, // True if booking through a booking link
                 })
             })
             if (!res.ok) {
@@ -295,8 +328,15 @@ const BookingPage = () => {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-2xl font-bold text-blue-600">{poolData.price}</div>
+                                        <div className="text-2xl font-bold text-blue-600">
+                                            ${poolData.bookingPrice !== undefined ? poolData.bookingPrice : poolData.price}
+                                        </div>
                                         <div className="text-sm text-gray-600">per hour</div>
+                                        {poolData.bookingPrice !== undefined && poolData.bookingPrice !== poolData.price && (
+                                            <div className="text-xs text-orange-600 mt-1">
+                                                Special booking price
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
@@ -309,16 +349,19 @@ const BookingPage = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-3 gap-4">
-                                    {poolData.images.map((image, index) => (
-                                        <div key={index} className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg relative">
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="text-white text-center">
-                                                    <Building2 className="h-8 w-8 mx-auto mb-1 opacity-80" />
-                                                    <p className="text-xs opacity-80">Photo {index + 1}</p>
-                                                </div>
+                                    {poolData.images && poolData.images.length > 0 ? (
+                                        poolData.images.map((image, index) => (
+                                            <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                                <img
+                                                    src={image}
+                                                    alt={`Pool photo ${index + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    ) : (
+                                        <div className="col-span-3 text-sm text-gray-500">No images available.</div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -365,7 +408,18 @@ const BookingPage = () => {
                                             disabled={(date) => {
                                                 const today = new Date()
                                                 today.setHours(0, 0, 0, 0)
-                                                return date < today
+
+                                                // Disable past dates
+                                                if (date < today) return true
+
+                                                // If booking through a booking link, disable dates after link expiry
+                                                if (bookingToken && poolData?.bookingLinkExpiry) {
+                                                    const linkExpiry = new Date(poolData.bookingLinkExpiry)
+                                                    linkExpiry.setHours(23, 59, 59, 999) // End of expiry day
+                                                    return date > linkExpiry
+                                                }
+
+                                                return false
                                             }}
                                         />
                                     </div>
