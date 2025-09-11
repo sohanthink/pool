@@ -49,18 +49,21 @@ const BookPickleballPage = () => {
         notes: ""
     })
 
+    // Availability state
     const [availableSlots, setAvailableSlots] = useState([])
+    const [allSlots, setAllSlots] = useState([])
     const [loadingSlots, setLoadingSlots] = useState(false)
+    const [errorSlots, setErrorSlots] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [bookingError, setBookingError] = useState('')
+    const [bookingSuccess, setBookingSuccess] = useState(false)
 
-    // Fetch pickleball court data
+    // Fetch pickleball court details
     useEffect(() => {
-        const fetchPickleballData = async () => {
+        async function fetchPickleball() {
+            setLoadingPool(true)
+            setErrorPool('')
             try {
-                setLoadingPool(true)
-                setErrorPool('')
-
                 const res = await fetch(`/api/pickleball/${courtId}`)
                 if (!res.ok) throw new Error('Failed to fetch pickleball court')
                 const data = await res.json()
@@ -101,12 +104,6 @@ const BookPickleballPage = () => {
                     }
                 }
 
-                console.log('Pickleball data received:', {
-                    bookingLinkExpiry: data.bookingLinkExpiry,
-                    isBookingLinkActive: data.isBookingLinkActive,
-                    bookingToken: data.bookingToken,
-                    bookingPrice: data.bookingPrice
-                })
                 setPickleballData(data)
             } catch (err) {
                 setErrorPool('Failed to load pickleball court details')
@@ -116,33 +113,8 @@ const BookPickleballPage = () => {
             }
         }
 
-        fetchPickleballData()
+        fetchPickleball()
     }, [courtId, bookingToken])
-
-    // Update time remaining countdown
-    useEffect(() => {
-        if (!pickleballData?.bookingLinkExpiry) return
-
-        const updateTimeRemaining = () => {
-            const now = new Date()
-            const expiry = new Date(pickleballData.bookingLinkExpiry)
-            const diff = expiry - now
-
-            if (diff <= 0) {
-                setTimeRemaining('Expired')
-                return
-            }
-
-            const hours = Math.floor(diff / (1000 * 60 * 60))
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-            setTimeRemaining(`${hours}h ${minutes}m remaining`)
-        }
-
-        updateTimeRemaining()
-        const interval = setInterval(updateTimeRemaining, 60000) // Update every minute
-
-        return () => clearInterval(interval)
-    }, [pickleballData?.bookingLinkExpiry])
 
     // Fetch available slots when date is selected
     useEffect(() => {
@@ -170,7 +142,14 @@ const BookPickleballPage = () => {
                     // If the selected date is the same as link expiry date, filter times
                     if (selectedDateObj.toDateString() === linkExpiry.toDateString()) {
                         filteredSlots = slots.filter(slot => {
-                            const slotTime = new Date(`${dateStr}T${slot}`)
+                            // Convert 12-hour format to 24-hour format for Date parsing
+                            const [time, period] = slot.split(' ')
+                            const [hours, minutes] = time.split(':')
+                            let hour24 = parseInt(hours)
+                            if (period === 'PM' && hour24 !== 12) hour24 += 12
+                            if (period === 'AM' && hour24 === 12) hour24 = 0
+
+                            const slotTime = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minutes}:00`)
                             return slotTime <= linkExpiry
                         })
                     }
@@ -181,12 +160,16 @@ const BookPickleballPage = () => {
                 }
 
                 setAvailableSlots(filteredSlots)
+                setAllSlots(slots)
             } else {
+                setErrorSlots('Failed to load available slots')
                 setAvailableSlots([])
+                setAllSlots([])
             }
         } catch (err) {
-            console.error('Error fetching slots:', err)
+            setErrorSlots('Failed to load available slots')
             setAvailableSlots([])
+            setAllSlots([])
         } finally {
             setLoadingSlots(false)
         }
@@ -194,49 +177,68 @@ const BookPickleballPage = () => {
 
     const calculatePrice = () => {
         if (!pickleballData) return 0
-        // Prioritize booking price if available (from booking link)
-        const price = pickleballData.bookingPrice !== undefined ? pickleballData.bookingPrice : pickleballData.price
-        return price * parseInt(duration)
+
+        // If booking through a booking link, use the booking link price
+        if (bookingToken && pickleballData.bookingPrice !== undefined) {
+            return pickleballData.bookingPrice
+        }
+
+        return pickleballData.price || 0
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (!selectedDate || !selectedTime) {
+            setBookingError('Please select date and time')
+            return
+        }
+
         setSubmitting(true)
         setBookingError('')
 
         try {
-            const bookingPayload = {
+            const bookingData = {
                 pickleballCourtId: courtId,
-                customerName: formData.name,
-                customerEmail: formData.email,
-                customerPhone: formData.phone,
                 date: selectedDate.toISOString().split('T')[0],
                 time: selectedTime,
                 duration: parseInt(duration),
-                players: parseInt(formData.players),
+                guests: parseInt(formData.players) || 1,
+                customerName: formData.name,
+                customerEmail: formData.email,
+                customerPhone: formData.phone,
                 notes: formData.notes,
-                price: pickleballData.bookingPrice !== undefined ? pickleballData.bookingPrice : pickleballData.price,
-                totalPrice: calculatePrice(),
+                price: calculatePrice(),
+                totalPrice: calculatePrice() * parseInt(duration),
                 fromBookingLink: !!bookingToken
             }
 
             const res = await fetch('/api/bookings', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bookingPayload)
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bookingData),
             })
 
-            if (!res.ok) {
-                const errorData = await res.json()
-                throw new Error(errorData.error || 'Failed to create booking')
+            if (res.ok) {
+                const result = await res.json()
+                setBookingSuccess(true)
+                // Reset form
+                setFormData({
+                    name: "",
+                    email: "",
+                    phone: "",
+                    players: "",
+                    notes: ""
+                })
+                setSelectedDate(null)
+                setSelectedTime("")
+            } else {
+                const error = await res.json()
+                setBookingError(error.message || 'Failed to create booking')
             }
-
-            const booking = await res.json()
-            alert('Booking created successfully!')
-            // Redirect to a success page or reset form
-            window.location.href = '/'
         } catch (err) {
-            setBookingError(err.message || 'Failed to create booking')
+            setBookingError('Failed to create booking')
         } finally {
             setSubmitting(false)
         }
@@ -247,22 +249,71 @@ const BookPickleballPage = () => {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading pickleball court...</p>
+                    <p className="text-gray-600">Loading pickleball court details...</p>
                 </div>
             </div>
         )
     }
 
-    if (errorPool || !pickleballData || !isValidBookingLink) {
+    if (bookingSuccess) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center max-w-md mx-auto p-6">
-                    <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <div className="text-center max-w-md mx-auto p-8">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="w-12 h-12 text-green-600" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">Booking Confirmed!</h1>
+                    <p className="text-gray-600 mb-6">
+                        Your pickleball court booking has been successfully created.
+                        You will receive a confirmation email shortly with all the details.
+                    </p>
+                    <div className="space-y-3">
+                        <div className="bg-white p-4 rounded-lg border">
+                            <p className="text-sm text-gray-500">Court</p>
+                            <p className="font-semibold">{pickleballData?.name}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border">
+                            <p className="text-sm text-gray-500">Date & Time</p>
+                            <p className="font-semibold">
+                                {selectedDate?.toLocaleDateString()} at {selectedTime}
+                            </p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border">
+                            <p className="text-sm text-gray-500">Duration</p>
+                            <p className="font-semibold">{duration} hour{duration !== "1" ? "s" : ""}</p>
+                        </div>
+                    </div>
+                    <Button
+                        onClick={() => window.location.reload()}
+                        className="mt-6 w-full"
+                    >
+                        Make Another Booking
+                    </Button>
+                </div>
+            </div>
+        )
+    }
+
+    if (errorPool || !isValidBookingLink) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Booking Not Available</h1>
                     <p className="text-gray-600 mb-4">{errorPool}</p>
-                    <Button onClick={() => window.location.href = '/'}>
-                        Go Back Home
-                    </Button>
+                    <Button onClick={() => window.history.back()}>Go Back</Button>
+                </div>
+            </div>
+        )
+    }
+
+    if (!pickleballData) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Pickleball Court Not Found</h1>
+                    <p className="text-gray-600">The requested pickleball court could not be found.</p>
                 </div>
             </div>
         )
@@ -270,132 +321,140 @@ const BookPickleballPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Court Information */}
-                    <div className="lg:col-span-2 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left Column - Court Information */}
+                    <div className="space-y-6">
                         {/* Court Header */}
                         <Card>
                             <CardContent className="p-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <Target className="h-6 w-6 text-green-600" />
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                            <Target className="w-6 h-6 text-green-600" />
+                                        </div>
+                                        <div>
                                             <h1 className="text-2xl font-bold text-gray-900">{pickleballData.name}</h1>
-                                            <Badge variant="outline" className="text-green-700 border-green-300">
-                                                {pickleballData.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-gray-600 mb-4">
-                                            <div className="flex items-center gap-1">
-                                                <MapPin className="h-4 w-4" />
-                                                <span>{pickleballData.location}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                                <span>{pickleballData.rating}</span>
+                                            <div className="flex items-center space-x-2 mt-1">
+                                                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                                    Active
+                                                </Badge>
                                             </div>
                                         </div>
-                                        <p className="text-gray-700">{pickleballData.description}</p>
-                                        {timeRemaining && (
-                                            <div className="mt-4 flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-orange-500" />
-                                                <span className="text-sm text-orange-600 font-medium">
-                                                    {timeRemaining}
-                                                </span>
-                                                {linkExpiry && (
-                                                    <span className="text-xs text-gray-500">
-                                                        (Expires: {linkExpiry})
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-bold text-green-600">
-                                            ${pickleballData.bookingPrice !== undefined ? pickleballData.bookingPrice : pickleballData.price}
-                                        </div>
-                                        <div className="text-sm text-gray-600">per hour</div>
-                                        {pickleballData.bookingPrice !== undefined && pickleballData.bookingPrice !== pickleballData.price && (
-                                            <div className="text-xs text-orange-600 mt-1">
-                                                Special booking price
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center text-gray-600">
+                                        <MapPin className="w-4 h-4 mr-2" />
+                                        <span>{pickleballData.location}</span>
+                                    </div>
+                                    <div className="flex items-center text-gray-600">
+                                        <Star className="w-4 h-4 mr-2" />
+                                        <span>{pickleballData.rating || 0} stars</span>
+                                    </div>
+                                    <p className="text-gray-600">{pickleballData.description}</p>
+
+                                    {/* Booking Link Info */}
+                                    {bookingToken && (
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                                            <div className="flex items-center text-orange-800">
+                                                <Clock className="w-4 h-4 mr-2" />
+                                                <span className="font-medium">{timeRemaining}</span>
                                             </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Pricing */}
+                        <Card>
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900">Pricing</h3>
+                                        <p className="text-2xl font-bold text-green-600">
+                                            ${calculatePrice()} per hour
+                                        </p>
+                                        {bookingToken && pickleballData.bookingPrice !== undefined && (
+                                            <Badge variant="outline" className="mt-2 border-orange-200 text-orange-800">
+                                                Special booking price
+                                            </Badge>
                                         )}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* Court Images */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Court Photos</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-3 gap-4">
-                                    {pickleballData.images && pickleballData.images.length > 0 ? (
-                                        pickleballData.images.map((image, index) => (
-                                            <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                        {/* Court Photos */}
+                        {pickleballData.images && pickleballData.images.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Court Photos</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {pickleballData.images.map((image, index) => (
+                                            <div key={index} className="relative">
                                                 <img
                                                     src={image}
                                                     alt={`Court photo ${index + 1}`}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-48 object-cover rounded-lg"
                                                 />
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-3 text-sm text-gray-500">No images available.</div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         {/* Court Details */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Court Details</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Target className="h-4 w-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">Surface: {pickleballData.surface}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Users className="h-4 w-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">Type: {pickleballData.type}</span>
-                                    </div>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center text-gray-600">
+                                    <Target className="w-4 h-4 mr-2" />
+                                    <span>Surface: {pickleballData.surface}</span>
+                                </div>
+                                <div className="flex items-center text-gray-600">
+                                    <Users className="w-4 h-4 mr-2" />
+                                    <span>Type: {pickleballData.type}</span>
                                 </div>
                             </CardContent>
                         </Card>
 
                         {/* Amenities */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Amenities</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex flex-wrap gap-2">
-                                    {pickleballData.amenities.map((amenity, index) => (
-                                        <Badge key={index} variant="outline">
-                                            {amenity}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {pickleballData.amenities && pickleballData.amenities.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Amenities</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex flex-wrap gap-2">
+                                        {pickleballData.amenities.map((amenity, index) => (
+                                            <Badge key={index} variant="outline">
+                                                {amenity}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
 
-                    {/* Booking Form */}
-                    <div className="space-y-6">
+                    {/* Right Column - Booking Form */}
+                    <div>
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <CalendarIcon className="h-5 w-5" />
+                                <CardTitle className="flex items-center">
+                                    <CalendarIcon className="w-5 h-5 mr-2" />
                                     Book This Court
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-6">
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     {bookingError && (
                                         <div className="text-red-600 text-sm mb-2">{bookingError}</div>
@@ -418,17 +477,8 @@ const BookPickleballPage = () => {
                                                 // If booking through a booking link, disable dates after link expiry
                                                 if (bookingToken && pickleballData?.bookingLinkExpiry) {
                                                     const linkExpiry = new Date(pickleballData.bookingLinkExpiry)
-                                                    const linkExpiryDate = new Date(linkExpiry.getFullYear(), linkExpiry.getMonth(), linkExpiry.getDate())
-                                                    const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
-                                                    console.log('Calendar check:', {
-                                                        date: date.toDateString(),
-                                                        linkExpiry: linkExpiry.toDateString(),
-                                                        linkExpiryDate: linkExpiryDate.toDateString(),
-                                                        checkDate: checkDate.toDateString(),
-                                                        shouldDisable: checkDate > linkExpiryDate
-                                                    })
-                                                    return checkDate > linkExpiryDate
+                                                    linkExpiry.setHours(23, 59, 59, 999) // End of expiry day
+                                                    return date > linkExpiry
                                                 }
 
                                                 return false
@@ -441,11 +491,18 @@ const BookPickleballPage = () => {
                                         <div>
                                             <Label className="text-sm font-medium">Select Time</Label>
                                             {loadingSlots ? (
-                                                <div className="text-sm text-gray-500 mt-2">Loading available times...</div>
-                                            ) : availableSlots.length > 0 ? (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                                    <span className="ml-2 text-gray-600">Loading available times...</span>
+                                                </div>
+                                            ) : errorSlots ? (
+                                                <p className="text-red-600 text-sm mt-2">{errorSlots}</p>
+                                            ) : availableSlots.length === 0 ? (
+                                                <p className="text-gray-500 text-sm mt-2">No available times for this date</p>
+                                            ) : (
                                                 <Select value={selectedTime} onValueChange={setSelectedTime}>
                                                     <SelectTrigger className="mt-2">
-                                                        <SelectValue placeholder="Choose a time" />
+                                                        <SelectValue placeholder="Select a time" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {availableSlots.map((slot) => (
@@ -455,8 +512,6 @@ const BookPickleballPage = () => {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                            ) : (
-                                                <div className="text-sm text-gray-500 mt-2">No available times for this date</div>
                                             )}
                                         </div>
                                     )}
@@ -477,97 +532,95 @@ const BookPickleballPage = () => {
                                         </Select>
                                     </div>
 
-                                    {/* Player Count */}
+                                    {/* Number of Players */}
                                     <div>
-                                        <Label htmlFor="players" className="text-sm font-medium">Number of Players</Label>
+                                        <Label className="text-sm font-medium">Number of Players</Label>
                                         <Input
-                                            id="players"
                                             type="number"
-                                            min="2"
-                                            max="8"
+                                            min="1"
+                                            max="4"
                                             value={formData.players}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, players: e.target.value }))}
+                                            onChange={(e) => setFormData({ ...formData, players: e.target.value })}
                                             className="mt-2"
-                                            required
+                                            placeholder="Enter number of players"
                                         />
                                     </div>
 
-                                    {/* Customer Information */}
+                                    {/* Your Information */}
                                     <div className="space-y-4">
-                                        <h4 className="font-medium text-gray-900">Your Information</h4>
+                                        <h3 className="text-lg font-medium">Your Information</h3>
 
                                         <div>
-                                            <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+                                            <Label className="text-sm font-medium">Full Name</Label>
                                             <Input
-                                                id="name"
+                                                type="text"
                                                 value={formData.name}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 className="mt-2"
+                                                placeholder="Enter your full name"
                                                 required
                                             />
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                                            <Label className="text-sm font-medium">Email</Label>
                                             <Input
-                                                id="email"
                                                 type="email"
                                                 value={formData.email}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                 className="mt-2"
+                                                placeholder="Enter your email"
                                                 required
                                             />
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                                            <Label className="text-sm font-medium">Phone</Label>
                                             <Input
-                                                id="phone"
                                                 type="tel"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                                 className="mt-2"
-                                                required
+                                                placeholder="Enter your phone number"
                                             />
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="notes" className="text-sm font-medium">Notes (Optional)</Label>
+                                            <Label className="text-sm font-medium">Notes (Optional)</Label>
                                             <Textarea
-                                                id="notes"
                                                 value={formData.notes}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                                rows={3}
+                                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                                 className="mt-2"
+                                                placeholder="Any special requests or notes"
+                                                rows={3}
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Price Summary */}
-                                    {selectedDate && selectedTime && (
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                            <h4 className="font-medium text-green-900 mb-2">Booking Summary</h4>
-                                            <div className="space-y-1 text-sm text-green-800">
-                                                <p>Court: {pickleballData.name}</p>
-                                                <p>Date: {selectedDate.toLocaleDateString()}</p>
-                                                <p>Time: {new Date(`2000-01-01T${selectedTime}`).toLocaleTimeString('en-US', {
-                                                    hour: 'numeric',
-                                                    minute: '2-digit',
-                                                    hour12: true
-                                                })}</p>
-                                                <p>Duration: {duration} hour(s)</p>
-                                                <p>Players: {formData.players}</p>
-                                                <p className="font-semibold">Total: ${calculatePrice()}</p>
-                                            </div>
+                                    {/* Total Price */}
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-lg font-medium">Total Price:</span>
+                                            <span className="text-2xl font-bold text-green-600">
+                                                ${calculatePrice() * parseInt(duration)}
+                                            </span>
                                         </div>
-                                    )}
+                                    </div>
 
+                                    {/* Submit Button */}
                                     <Button
                                         type="submit"
-                                        disabled={submitting || !selectedDate || !selectedTime || !formData.name || !formData.email || !formData.phone || !formData.players}
                                         className="w-full"
+                                        disabled={submitting || !selectedDate || !selectedTime}
                                     >
-                                        {submitting ? 'Creating Booking...' : 'Book Court'}
+                                        {submitting ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                Creating Booking...
+                                            </>
+                                        ) : (
+                                            'Book Now'
+                                        )}
                                     </Button>
                                 </form>
                             </CardContent>

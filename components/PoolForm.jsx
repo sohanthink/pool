@@ -122,7 +122,7 @@ const PoolForm = ({ initialData, onSubmit, submitLabel }) => {
             const data = await res.json();
             setForm((prev) => {
                 const images = [...prev.images];
-                images[index] = data.filePath;
+                images[index] = data.url;
                 return { ...prev, images };
             });
             setUploaded(prev => { const arr = [...prev]; arr[index] = true; return arr; });

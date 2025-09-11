@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../auth/[...nextauth]/route";
-import connectDB from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import Pickleball from "@/models/Pickleball";
 import crypto from "crypto";
 
@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
     const resolvedParams = await params;
     const { id } = resolvedParams;
     const body = await request.json();
@@ -51,7 +51,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({
       bookingToken,
       bookingLinkExpiry,
-      bookingUrl: `${process.env.NEXTAUTH_URL}/pickleball/${id}/book`,
+      bookingUrl: `${process.env.NEXTAUTH_URL}/pickleball/${id}/book?token=${bookingToken}`,
       price: parseFloat(price) || 0,
     });
   } catch (error) {
@@ -70,7 +70,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
     const resolvedParams = await params;
     const { id } = resolvedParams;
 

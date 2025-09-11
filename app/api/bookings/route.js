@@ -4,6 +4,10 @@ import Booking from "@/models/Booking";
 import Pool from "@/models/Pool";
 import Tennis from "@/models/Tennis";
 import Pickleball from "@/models/Pickleball";
+import {
+  sendBookingConfirmationToUser,
+  sendBookingNotificationToAdmin,
+} from "@/lib/email";
 
 // Utility function to convert 12-hour format to 24-hour format
 function convert12To24Hour(time12h) {
@@ -330,8 +334,6 @@ export async function POST(request) {
       bookingData.pickleballCourtId = body.pickleballCourtId;
     }
 
-    console.log("Creating booking with data:", bookingData);
-
     const booking = new Booking(bookingData);
 
     const savedBooking = await booking.save();
@@ -377,18 +379,75 @@ export async function POST(request) {
     if (body.poolId) {
       populatedBooking = await Booking.findById(savedBooking._id).populate(
         "poolId",
-        "name location"
+        "name location owner"
       );
     } else if (body.tennisCourtId) {
       populatedBooking = await Booking.findById(savedBooking._id).populate(
         "tennisCourtId",
-        "name location"
+        "name location owner"
       );
     } else if (body.pickleballCourtId) {
       populatedBooking = await Booking.findById(savedBooking._id).populate(
         "pickleballCourtId",
-        "name location"
+        "name location owner"
       );
+    }
+
+    // Send email notifications
+    try {
+      const venue =
+        populatedBooking.poolId ||
+        populatedBooking.tennisCourtId ||
+        populatedBooking.pickleballCourtId;
+      const venueType = populatedBooking.poolId
+        ? "Pool"
+        : populatedBooking.tennisCourtId
+        ? "Tennis Court"
+        : "Pickleball Court";
+
+      // Prepare email data
+      const userEmailData = {
+        userEmail: body.customerEmail,
+        userName: body.customerName,
+        venueName: venue.name,
+        venueType: venueType,
+        date: body.date,
+        time: body.time,
+        duration: body.duration,
+        totalPrice: body.totalPrice || 0,
+        bookingId: savedBooking._id.toString().slice(-8), // Last 8 characters of booking ID
+      };
+
+      const adminEmailData = {
+        adminEmail: venue.owner.email,
+        adminName: venue.owner.name,
+        userName: body.customerName,
+        userEmail: body.customerEmail,
+        userPhone: body.customerPhone,
+        venueName: venue.name,
+        venueType: venueType,
+        date: body.date,
+        time: body.time,
+        duration: body.duration,
+        totalPrice: body.totalPrice || 0,
+        bookingId: savedBooking._id.toString().slice(-8),
+        numberOfGuests: body.guests,
+      };
+
+      // Send emails asynchronously (don't wait for them to complete)
+      Promise.all([
+        sendBookingConfirmationToUser(userEmailData),
+        sendBookingNotificationToAdmin(adminEmailData),
+      ])
+        .then(([userResult, adminResult]) => {
+          console.log("Email results:", { userResult, adminResult });
+        })
+        .catch((error) => {
+          console.error("Error sending emails:", error);
+        });
+    } catch (emailError) {
+      console.error("Error preparing email data:", emailError);
+      // Don't fail the booking if email fails
     }
 
     return NextResponse.json(populatedBooking, { status: 201 });

@@ -8,8 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { X, Upload, Target } from "lucide-react"
+import { X, Upload, Target, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { useRef } from 'react'
+
+const MAX_IMAGE_SIZE_MB = 2;
+const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 const PickleballForm = ({ pickleball = null }) => {
     const { data: session, status } = useSession()
@@ -26,13 +30,15 @@ const PickleballForm = ({ pickleball = null }) => {
         price: pickleball?.price || '',
         status: pickleball?.status || 'Active',
         amenities: pickleball?.amenities || [],
-        images: pickleball?.images || []
+        images: Array.isArray(pickleball?.images) ? [...pickleball.images, '', '', '', ''].slice(0, 5) : ['', '', '', '', '']
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [newAmenity, setNewAmenity] = useState('')
-    const [uploading, setUploading] = useState(false)
-    const [dragOver, setDragOver] = useState(false)
+    const fileInputRefs = [useRef(), useRef(), useRef(), useRef(), useRef()]
+    const [imageErrors, setImageErrors] = useState([null, null, null, null, null])
+    const [uploading, setUploading] = useState([false, false, false, false, false])
+    const [uploaded, setUploaded] = useState([false, false, false, false, false])
 
     // Update owner fields if session changes
     React.useEffect(() => {
@@ -80,77 +86,84 @@ const PickleballForm = ({ pickleball = null }) => {
         }))
     }
 
-    const handleImageUpload = async (files) => {
-        setUploading(true)
-        setError('')
+    const handleImageChange = (index, value) => {
+        setFormData((prev) => {
+            const images = [...prev.images]
+            images[index] = value
+            return { ...prev, images }
+        })
+    }
+
+    const handleDrop = async (index, files) => {
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        if (file.size > MAX_IMAGE_SIZE) {
+            setImageErrors(prev => {
+                const errs = [...prev];
+                errs[index] = `Image must be less than ${MAX_IMAGE_SIZE_MB}MB.`;
+                return errs;
+            });
+            return;
+        }
+        setImageErrors(prev => {
+            const errs = [...prev];
+            errs[index] = null;
+            return errs;
+        });
+        setUploading(prev => { const arr = [...prev]; arr[index] = true; return arr; });
 
         try {
-            const uploadedUrls = []
-            for (const file of files) {
-                const formData = new FormData()
-                formData.append('file', file)
-
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-
-                if (!response.ok) {
-                    const errorData = await response.json()
-                    throw new Error(errorData.error || 'Failed to upload image')
-                }
-
-                const data = await response.json()
-                uploadedUrls.push(data.url)
-            }
-
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, ...uploadedUrls]
-            }))
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Failed to upload image');
+            const data = await res.json();
+            setFormData((prev) => {
+                const images = [...prev.images];
+                images[index] = data.url;
+                return { ...prev, images };
+            });
+            setUploaded(prev => { const arr = [...prev]; arr[index] = true; return arr; });
         } catch (err) {
-            setError(err.message || 'Failed to upload images')
+            setImageErrors(prev => {
+                const errs = [...prev];
+                errs[index] = 'Image upload failed.';
+                return errs;
+            });
         } finally {
-            setUploading(false)
+            setUploading(prev => { const arr = [...prev]; arr[index] = false; return arr; });
         }
-    }
+    };
 
-    const handleFileInputChange = (e) => {
-        const files = Array.from(e.target.files)
-        if (files.length > 0) {
-            handleImageUpload(files)
-        }
-    }
+    const handleRemoveImage = (index) => {
+        setFormData((prev) => {
+            const images = [...prev.images];
+            images[index] = '';
+            return { ...prev, images };
+        });
+        setImageErrors(prev => {
+            const errs = [...prev];
+            errs[index] = null;
+            return errs;
+        });
+        setUploaded(prev => {
+            const arr = [...prev];
+            arr[index] = false;
+            return arr;
+        });
+    };
 
-    const handleDragOver = (e) => {
-        e.preventDefault()
-        setDragOver(true)
-    }
-
-    const handleDragLeave = (e) => {
-        e.preventDefault()
-        setDragOver(false)
-    }
-
-    const handleDrop = (e) => {
-        e.preventDefault()
-        setDragOver(false)
-
-        const files = Array.from(e.dataTransfer.files).filter(file =>
-            file.type.startsWith('image/')
-        )
-
-        if (files.length > 0) {
-            handleImageUpload(files)
-        }
-    }
-
-    const removeImage = (index) => {
-        setFormData(prev => ({
+    const handleClearAllImages = () => {
+        setFormData((prev) => ({
             ...prev,
-            images: prev.images.filter((_, i) => i !== index)
-        }))
-    }
+            images: ['', '', '', '', '']
+        }));
+        setImageErrors([null, null, null, null, null]);
+        setUploaded([false, false, false, false, false]);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -164,6 +177,7 @@ const PickleballForm = ({ pickleball = null }) => {
             // Prepare the data with owner information
             const submitData = {
                 ...formData,
+                images: formData.images.filter(Boolean),
                 owner: {
                     name: formData.ownerName,
                     email: formData.ownerEmail,
@@ -379,61 +393,85 @@ const PickleballForm = ({ pickleball = null }) => {
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <Label>Images</Label>
-                            <div
-                                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragOver
-                                    ? 'border-blue-400 bg-blue-50'
-                                    : 'border-gray-300 hover:border-gray-400'
-                                    }`}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                            >
-                                <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                                <p className="text-sm text-gray-600 mb-2">
-                                    Click to upload or drag and drop images here
-                                </p>
-                                <p className="text-xs text-gray-500 mb-4">
-                                    Supports JPEG, PNG, WebP (max 5MB each)
-                                </p>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={handleFileInputChange}
-                                    className="hidden"
-                                    id="image-upload"
-                                    disabled={uploading}
-                                />
-                                <label htmlFor="image-upload">
-                                    <Button type="button" variant="outline" disabled={uploading}>
-                                        {uploading ? 'Uploading...' : 'Choose Images'}
+                        <div className="border-t pt-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <Label className="text-sm font-medium text-gray-700">
+                                    Pickleball Court Images (Drag & drop or click to upload)
+                                </Label>
+                                {formData.images.some(img => img) && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleClearAllImages}
+                                        className="text-red-600 hover:text-red-700"
+                                    >
+                                        Clear All
                                     </Button>
-                                </label>
+                                )}
                             </div>
-                            {formData.images.length > 0 && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {formData.images.map((image, index) => (
-                                        <div key={index} className="relative">
-                                            <img
-                                                src={image}
-                                                alt={`Pickleball court ${index + 1}`}
-                                                className="w-full h-32 object-cover rounded-lg"
+                            <div className="flex items-center gap-4">
+                                <div className="flex gap-4">
+                                    {[...Array(5)].map((_, index) => (
+                                        <Card key={index} className="w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
+                                            <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
+                                                {formData.images[index] ? (
+                                                    <div className="relative w-full h-full">
+                                                        <img
+                                                            src={formData.images[index].startsWith('/uploads/') ? formData.images[index] : `/uploads/${formData.images[index].replace(/^\/+/, '')}`}
+                                                            alt={`Pickleball Court ${index + 1}`}
+                                                            className="w-full h-full object-cover rounded-lg"
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            className="absolute top-1 right-1 h-6 w-6 p-0 rounded-full"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveImage(index);
+                                                            }}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">Drop or click</span>
+                                                )}
+                                                {uploading[index] && (
+                                                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
+                                                        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                                                    </div>
+                                                )}
+                                                {uploaded[index] && !uploading[index] && (
+                                                    <CheckCircle className="absolute top-2 right-2 text-green-500 bg-white rounded-full z-30" size={20} />
+                                                )}
+                                                <Input
+                                                    ref={fileInputRefs[index]}
+                                                    id={`image-upload-${index}`}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={e => handleDrop(index, e.target.files)}
+                                                />
+                                                {imageErrors[index] && (
+                                                    <Badge variant="destructive" className="absolute bottom-0 left-0 right-0 text-xs whitespace-normal">{imageErrors[index]}</Badge>
+                                                )}
+                                            </CardContent>
+                                            <div
+                                                className="absolute inset-0 z-10"
+                                                onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                                                onDrop={e => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleDrop(index, e.dataTransfer.files);
+                                                }}
                                             />
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="destructive"
-                                                className="absolute top-1 right-1 h-6 w-6 p-0"
-                                                onClick={() => removeImage(index)}
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </Button>
-                                        </div>
+                                        </Card>
                                     ))}
                                 </div>
-                            )}
+                            </div>
+                            <span className="text-sm text-gray-500">Upload up to 5 images (max 2MB each)</span>
                         </div>
 
                         <div className="flex gap-4">
