@@ -120,28 +120,64 @@ const BookPickleballPage = () => {
     useEffect(() => {
         if (selectedDate && pickleballData) {
             fetchAvailableSlots()
+
+            // If selected date is today, set up interval to refresh slots every minute
+            const selectedDateObj = new Date(selectedDate)
+            const isToday = selectedDateObj.toDateString() === new Date().toDateString()
+
+            let interval = null
+            if (isToday) {
+                interval = setInterval(fetchAvailableSlots, 60000) // Refresh every minute
+            }
+
+            return () => {
+                if (interval) clearInterval(interval)
+            }
         }
     }, [selectedDate, pickleballData, bookingToken, pickleballData?.bookingLinkExpiry])
 
     const fetchAvailableSlots = async () => {
         try {
             setLoadingSlots(true)
-            const dateStr = selectedDate.toISOString().split('T')[0]
+            // Use local date instead of UTC to avoid timezone issues
+            const year = selectedDate.getFullYear()
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+            const day = String(selectedDate.getDate()).padStart(2, '0')
+            const dateStr = `${year}-${month}-${day}`
             const res = await fetch(`/api/pickleball/${courtId}/availability?date=${dateStr}`)
 
             if (res.ok) {
                 const data = await res.json()
                 const slots = data.availableSlots || data // Handle different response formats
 
-                // If booking through a booking link, filter slots based on link expiry
+                // Filter slots based on current time and booking link expiry
                 let filteredSlots = slots
+                const now = new Date()
+                const selectedDateObj = new Date(selectedDate)
+                const isToday = selectedDateObj.toDateString() === now.toDateString()
+
+                // If booking for today, filter out past time slots
+                if (isToday) {
+                    filteredSlots = slots.filter(slot => {
+                        // Convert 12-hour format to 24-hour format for Date parsing
+                        const [time, period] = slot.split(' ')
+                        const [hours, minutes] = time.split(':')
+                        let hour24 = parseInt(hours)
+                        if (period === 'PM' && hour24 !== 12) hour24 += 12
+                        if (period === 'AM' && hour24 === 12) hour24 = 0
+
+                        const slotTime = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minutes}:00`)
+                        return slotTime >= now // Only show slots at or after current time
+                    })
+                }
+
+                // If booking through a booking link, also filter based on link expiry
                 if (bookingToken && pickleballData?.bookingLinkExpiry) {
                     const linkExpiry = new Date(pickleballData.bookingLinkExpiry)
-                    const selectedDateObj = new Date(selectedDate)
 
                     // If the selected date is the same as link expiry date, filter times
                     if (selectedDateObj.toDateString() === linkExpiry.toDateString()) {
-                        filteredSlots = slots.filter(slot => {
+                        filteredSlots = filteredSlots.filter(slot => {
                             // Convert 12-hour format to 24-hour format for Date parsing
                             const [time, period] = slot.split(' ')
                             const [hours, minutes] = time.split(':')
@@ -197,9 +233,15 @@ const BookPickleballPage = () => {
         setBookingError('')
 
         try {
+            // Use local date instead of UTC to avoid timezone issues
+            const year = selectedDate.getFullYear()
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+            const day = String(selectedDate.getDate()).padStart(2, '0')
+            const dateStr = `${year}-${month}-${day}`
+
             const bookingData = {
                 pickleballCourtId: courtId,
-                date: selectedDate.toISOString().split('T')[0],
+                date: dateStr,
                 time: selectedTime,
                 duration: parseInt(duration),
                 guests: parseInt(formData.players) || 1,
@@ -498,7 +540,10 @@ const BookPickleballPage = () => {
                                             ) : errorSlots ? (
                                                 <p className="text-red-600 text-sm mt-2">{errorSlots}</p>
                                             ) : availableSlots.length === 0 ? (
-                                                <p className="text-gray-500 text-sm mt-2">No available times for this date</p>
+                                                <p className="text-red-600 text-sm mt-2 flex items-center gap-1">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    No available slots for this date
+                                                </p>
                                             ) : (
                                                 <Select value={selectedTime} onValueChange={setSelectedTime}>
                                                     <SelectTrigger className="mt-2">
@@ -513,6 +558,13 @@ const BookPickleballPage = () => {
                                                     </SelectContent>
                                                 </Select>
                                             )}
+                                            {selectedDate && !loadingSlots && availableSlots.length > 0 &&
+                                                new Date(selectedDate).toDateString() === new Date().toDateString() && (
+                                                    <p className="text-sm text-blue-600 mt-2 flex items-center gap-1">
+                                                        <Clock className="h-4 w-4" />
+                                                        Showing only current and future time slots
+                                                    </p>
+                                                )}
                                         </div>
                                     )}
 
@@ -528,6 +580,14 @@ const BookPickleballPage = () => {
                                                 <SelectItem value="2">2 hours</SelectItem>
                                                 <SelectItem value="3">3 hours</SelectItem>
                                                 <SelectItem value="4">4 hours</SelectItem>
+                                                <SelectItem value="5">5 hours</SelectItem>
+                                                <SelectItem value="6">6 hours</SelectItem>
+                                                <SelectItem value="7">7 hours</SelectItem>
+                                                <SelectItem value="8">8 hours</SelectItem>
+                                                <SelectItem value="9">9 hours</SelectItem>
+                                                <SelectItem value="10">10 hours</SelectItem>
+                                                <SelectItem value="11">11 hours</SelectItem>
+                                                <SelectItem value="12">12 hours</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

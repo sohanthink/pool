@@ -28,8 +28,11 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "Pool not found" }, { status: 404 });
     }
 
-    // Get all time slots (9 AM to 6 PM) in 12-hour format
+    // Get all time slots (6 AM to 11 PM) in 12-hour format for full day availability
     const allSlots = [
+      "6:00 AM",
+      "7:00 AM",
+      "8:00 AM",
       "9:00 AM",
       "10:00 AM",
       "11:00 AM",
@@ -40,6 +43,11 @@ export async function GET(request, { params }) {
       "4:00 PM",
       "5:00 PM",
       "6:00 PM",
+      "7:00 PM",
+      "8:00 PM",
+      "9:00 PM",
+      "10:00 PM",
+      "11:00 PM",
     ];
 
     // Get booked slots for the date

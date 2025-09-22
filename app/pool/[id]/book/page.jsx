@@ -142,24 +142,50 @@ const BookingPage = () => {
     // Fetch available slots when date changes
     useEffect(() => {
         if (!selectedDate) return
+
         async function fetchSlots() {
             setLoadingSlots(true)
             setErrorSlots('')
             try {
-                const dateStr = selectedDate.toISOString().split('T')[0]
+                // Use local date instead of UTC to avoid timezone issues
+                const year = selectedDate.getFullYear()
+                const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+                const day = String(selectedDate.getDate()).padStart(2, '0')
+                const dateStr = `${year}-${month}-${day}`
                 const res = await fetch(`/api/pools/${poolId}/availability?date=${dateStr}`)
                 if (!res.ok) throw new Error('Failed to fetch availability')
                 const data = await res.json()
 
-                // If booking through a booking link, filter slots based on link expiry
+
+                // Filter slots based on current time and booking link expiry
                 let filteredSlots = data.availableSlots
+                const now = new Date()
+                const selectedDateObj = new Date(selectedDate)
+                const isToday = selectedDateObj.toDateString() === now.toDateString()
+
+                // If booking for today, filter out past time slots
+                if (isToday) {
+                    filteredSlots = data.availableSlots.filter(slot => {
+                        // Convert 12-hour format to 24-hour format for Date parsing
+                        const [time, period] = slot.split(' ')
+                        const [hours, minutes] = time.split(':')
+                        let hour24 = parseInt(hours)
+                        if (period === 'PM' && hour24 !== 12) hour24 += 12
+                        if (period === 'AM' && hour24 === 12) hour24 = 0
+
+                        const slotTime = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minutes}:00`)
+                        return slotTime >= now // Only show slots at or after current time
+                    })
+                }
+
+                // If booking through a booking link, also filter based on link expiry
                 if (bookingToken && poolData?.bookingLinkExpiry) {
                     const linkExpiry = new Date(poolData.bookingLinkExpiry)
-                    const selectedDateObj = new Date(selectedDate)
+
 
                     // If the selected date is the same as link expiry date, filter times
                     if (selectedDateObj.toDateString() === linkExpiry.toDateString()) {
-                        filteredSlots = data.availableSlots.filter(slot => {
+                        filteredSlots = filteredSlots.filter(slot => {
                             // Convert 12-hour format to 24-hour format for Date parsing
                             const [time, period] = slot.split(' ')
                             const [hours, minutes] = time.split(':')
@@ -167,7 +193,10 @@ const BookingPage = () => {
                             if (period === 'PM' && hour24 !== 12) hour24 += 12
                             if (period === 'AM' && hour24 === 12) hour24 = 0
 
+                            // Create slot time in local timezone
                             const slotTime = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minutes}:00`)
+
+                            // Compare with link expiry (both should be in local timezone now)
                             return slotTime <= linkExpiry
                         })
                     }
@@ -176,6 +205,8 @@ const BookingPage = () => {
                         filteredSlots = []
                     }
                 }
+
+
 
                 setAvailableSlots(filteredSlots)
                 setAllSlots(data.allSlots)
@@ -188,6 +219,19 @@ const BookingPage = () => {
             }
         }
         fetchSlots()
+
+        // If selected date is today, set up interval to refresh slots every minute
+        const selectedDateObj = new Date(selectedDate)
+        const isToday = selectedDateObj.toDateString() === new Date().toDateString()
+
+        let interval = null
+        if (isToday) {
+            interval = setInterval(fetchSlots, 60000) // Refresh every minute
+        }
+
+        return () => {
+            if (interval) clearInterval(interval)
+        }
     }, [poolId, selectedDate, bookingToken, poolData?.bookingLinkExpiry])
 
     // Calculate price based on booking price (if set) or default pool price
@@ -452,6 +496,13 @@ const BookingPage = () => {
                                                     No available slots for this date
                                                 </p>
                                             )}
+                                            {selectedDate && !loadingSlots && availableSlots.length > 0 &&
+                                                new Date(selectedDate).toDateString() === new Date().toDateString() && (
+                                                    <p className="text-sm text-blue-600 mt-2 flex items-center gap-1">
+                                                        <Clock className="h-4 w-4" />
+                                                        Showing only current and future time slots
+                                                    </p>
+                                                )}
                                         </div>
                                     )}
 
@@ -467,6 +518,14 @@ const BookingPage = () => {
                                                 <SelectItem value="2">2 hours</SelectItem>
                                                 <SelectItem value="3">3 hours</SelectItem>
                                                 <SelectItem value="4">4 hours</SelectItem>
+                                                <SelectItem value="5">5 hours</SelectItem>
+                                                <SelectItem value="6">6 hours</SelectItem>
+                                                <SelectItem value="7">7 hours</SelectItem>
+                                                <SelectItem value="8">8 hours</SelectItem>
+                                                <SelectItem value="9">9 hours</SelectItem>
+                                                <SelectItem value="10">10 hours</SelectItem>
+                                                <SelectItem value="11">11 hours</SelectItem>
+                                                <SelectItem value="12">12 hours</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
