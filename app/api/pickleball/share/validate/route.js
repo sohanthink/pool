@@ -8,7 +8,6 @@ export async function POST(request) {
   try {
     const { courtId, token } = await request.json();
 
-
     if (!courtId || !token) {
       return NextResponse.json(
         {
@@ -45,18 +44,12 @@ export async function POST(request) {
       );
     }
 
-    // Check the court's link status
-      isLinkActive: courtExists.isLinkActive,
-      linkToken: courtExists.linkToken,
-      linkExpiry: courtExists.linkExpiry,
-    });
-
+    // Find the court with the specific token
     const pickleball = await Pickleball.findOne({
       _id: objectId,
       linkToken: token,
       isLinkActive: true,
     });
-
 
     if (!pickleball) {
       return NextResponse.json(

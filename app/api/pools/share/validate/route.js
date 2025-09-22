@@ -8,7 +8,6 @@ export async function POST(request) {
   try {
     const { poolId, token } = await request.json();
 
-
     if (!poolId || !token) {
       return NextResponse.json(
         {
@@ -45,18 +44,12 @@ export async function POST(request) {
       );
     }
 
-    // Check the pool's link status
-      isLinkActive: poolExists.isLinkActive,
-      linkToken: poolExists.linkToken,
-      linkExpiry: poolExists.linkExpiry,
-    });
-
+    // Find the pool with the specific token
     const pool = await Pool.findOne({
       _id: objectId,
       linkToken: token,
       isLinkActive: true,
     });
-
 
     if (!pool) {
       return NextResponse.json(

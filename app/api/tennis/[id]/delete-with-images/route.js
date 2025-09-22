@@ -37,6 +37,7 @@ export async function DELETE(request, { params }) {
               deletedImages++;
             } catch (fileErr) {
               if (fileErr.code === "ENOENT") {
+                console.log(
                   `Image file not found (already deleted?): ${imagePath}`
                 );
               } else {
@@ -53,6 +54,7 @@ export async function DELETE(request, { params }) {
     // Delete the court from database
     await Tennis.findByIdAndDelete(id);
 
+    console.log(
       `Tennis court ${id} deleted successfully. Deleted ${deletedImages} images.`
     );
     return new Response(

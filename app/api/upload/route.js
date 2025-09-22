@@ -12,11 +12,6 @@ export async function POST(request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-    });
-
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
@@ -55,12 +50,11 @@ export async function POST(request) {
     // Return the public URL
     const publicUrl = `/uploads/${newFilename}`;
 
+    return NextResponse.json({
       originalName: file.name,
       savedAs: newFilename,
       publicUrl: publicUrl,
     });
-
-    return NextResponse.json({ url: publicUrl });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(

@@ -9,7 +9,6 @@ export async function POST(request, context) {
     const params = await context.params;
     const { id } = params;
 
-
     if (!id) {
       return NextResponse.json(
         { error: "Tennis court ID is required" },
@@ -28,7 +27,6 @@ export async function POST(request, context) {
         { status: 404 }
       );
     }
-
 
     // Generate a unique token for the link
     const linkToken = crypto.randomBytes(32).toString("hex");
@@ -50,6 +48,7 @@ export async function POST(request, context) {
       { new: true, runValidators: true, upsert: false }
     );
 
+    return NextResponse.json({
       isLinkActive: updatedCourt.isLinkActive,
       linkToken: updatedCourt.linkToken,
       linkExpiry: updatedCourt.linkExpiry,
