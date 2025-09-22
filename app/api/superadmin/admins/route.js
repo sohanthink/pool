@@ -5,11 +5,9 @@ import Pool from "@/models/Pool";
 export async function GET() {
   try {
     await dbConnect();
-    console.log("Connected to database successfully");
 
     // Get all pools and group by owner email to identify unique admins
     const pools = await Pool.find({});
-    console.log(`Found ${pools.length} pools`);
 
     // Create a map of unique admins with their pool information
     const adminMap = new Map();
@@ -53,7 +51,6 @@ export async function GET() {
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
-    console.log(`Found ${admins.length} unique admins`);
     return NextResponse.json(admins);
   } catch (error) {
     console.error("Error fetching admins:", error);

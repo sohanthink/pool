@@ -8,7 +8,6 @@ export async function POST(request) {
   try {
     const { courtId, token } = await request.json();
 
-    console.log("Validating tennis link:", { courtId, token });
 
     if (!courtId || !token) {
       return NextResponse.json(
@@ -36,7 +35,6 @@ export async function POST(request) {
 
     // First, let's check if the tennis court exists
     const courtExists = await Tennis.findById(objectId);
-    console.log("Tennis court exists:", !!courtExists);
 
     if (!courtExists) {
       return NextResponse.json(
@@ -48,7 +46,6 @@ export async function POST(request) {
     }
 
     // Check the court's link status
-    console.log("Tennis court link status:", {
       isLinkActive: courtExists.isLinkActive,
       linkToken: courtExists.linkToken,
       linkExpiry: courtExists.linkExpiry,
@@ -60,7 +57,6 @@ export async function POST(request) {
       isLinkActive: true,
     });
 
-    console.log("Found tennis court with token:", !!court);
 
     if (!court) {
       return NextResponse.json(

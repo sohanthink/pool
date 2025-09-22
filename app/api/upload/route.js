@@ -12,7 +12,6 @@ export async function POST(request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    console.log("Upload request received:", {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
@@ -56,7 +55,6 @@ export async function POST(request) {
     // Return the public URL
     const publicUrl = `/uploads/${newFilename}`;
 
-    console.log("File uploaded successfully:", {
       originalName: file.name,
       savedAs: newFilename,
       publicUrl: publicUrl,

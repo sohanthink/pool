@@ -111,27 +111,28 @@ const PickleballPage = () => {
     }
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-gray-900">Pickleball Courts</h1>
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+            <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Pickleball Courts</h1>
                 <Link href="/dashboard/admin/pickleball/create">
-                    <Button className="flex items-center gap-2">
+                    <Button className="flex items-center gap-2 w-full sm:w-auto">
                         <Plus className="h-4 w-4" />
-                        Add Pickleball Court
+                        <span className="hidden sm:inline">Add Pickleball Court</span>
+                        <span className="sm:hidden">Add Court</span>
                     </Button>
                 </Link>
             </div>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 md:px-4 py-3 rounded text-sm md:text-base">
                     {error}
                 </div>
             )}
 
             {/* Filters */}
             <Card>
-                <CardContent className="p-6">
-                    <div className="flex flex-col sm:flex-row gap-4">
+                <CardContent className="p-4 md:p-6">
+                    <div className="flex flex-col space-y-3 sm:flex-row sm:gap-4 sm:space-y-0">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -144,51 +145,56 @@ const PickleballPage = () => {
                             </div>
                         </div>
 
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Filter by status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                                <SelectItem value="Maintenance">Maintenance</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex flex-col space-y-3 sm:flex-row sm:gap-4 sm:space-y-0">
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue placeholder="Filter by status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="Active">Active</SelectItem>
+                                    <SelectItem value="Inactive">Inactive</SelectItem>
+                                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                                </SelectContent>
+                            </Select>
 
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setSearchTerm("")
-                                setStatusFilter("all")
-                            }}
-                        >
-                            Clear Filters
-                        </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setSearchTerm("")
+                                    setStatusFilter("all")
+                                }}
+                                className="w-full sm:w-auto"
+                            >
+                                Clear Filters
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Pickleball Courts List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {filteredPickleballCourts.map((court) => (
                     <Card key={court._id} className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <Target className="h-5 w-5 text-blue-600" />
-                                    <CardTitle className="text-lg">{court.name}</CardTitle>
+                            <div className="flex flex-col space-y-2 sm:flex-row sm:justify-between sm:items-start sm:space-y-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Target className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                    <CardTitle className="text-lg truncate">{court.name}</CardTitle>
                                 </div>
-                                {getStatusBadge(court.status)}
+                                <div className="self-start sm:self-auto">
+                                    {getStatusBadge(court.status)}
+                                </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-3 md:space-y-4">
                             <div className="space-y-2">
-                                <p className="text-sm text-gray-600">{court.description}</p>
-                                <p className="text-sm font-medium">📍 {court.location}</p>
-                                <div className="flex gap-2 text-sm text-gray-600">
+                                <p className="text-sm text-gray-600 line-clamp-2">{court.description}</p>
+                                <p className="text-sm font-medium truncate">📍 {court.location}</p>
+                                <div className="flex flex-col space-y-1 sm:flex-row sm:gap-2 sm:space-y-0 text-sm text-gray-600">
                                     <span>Surface: {court.surface}</span>
-                                    <span>•</span>
+                                    <span className="hidden sm:inline">•</span>
                                     <span>Type: {court.type}</span>
                                 </div>
                                 <p className="text-lg font-bold text-green-600">${court.price}/hour</p>
@@ -204,7 +210,7 @@ const PickleballPage = () => {
                                 </div>
                             )}
 
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                                 {court.amenities?.slice(0, 3).map((amenity, index) => (
                                     <Badge key={index} variant="secondary" className="text-xs">
                                         {amenity}
@@ -218,8 +224,8 @@ const PickleballPage = () => {
                             </div>
 
                             <div className="flex gap-2 pt-2">
-                                <Link href={`/dashboard/admin/pickleball/${court._id}`}>
-                                    <Button size="sm" variant="outline" className="flex-1">
+                                <Link href={`/dashboard/admin/pickleball/${court._id}`} className="flex-1">
+                                    <Button size="sm" variant="outline" className="w-full">
                                         <Eye className="h-4 w-4 mr-1" />
                                         View
                                     </Button>
@@ -251,12 +257,12 @@ const PickleballPage = () => {
 
             {filteredPickleballCourts.length === 0 && (
                 <Card>
-                    <CardContent className="p-12 text-center">
+                    <CardContent className="p-8 md:p-12 text-center">
                         <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-600 mb-2">No pickleball courts found</h3>
-                        <p className="text-gray-500 mb-4">Get started by adding your first pickleball court.</p>
+                        <p className="text-gray-500 mb-4 text-sm md:text-base">Get started by adding your first pickleball court.</p>
                         <Link href="/dashboard/admin/pickleball/create">
-                            <Button>
+                            <Button className="w-full sm:w-auto">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Pickleball Court
                             </Button>

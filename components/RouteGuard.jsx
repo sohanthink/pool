@@ -13,7 +13,7 @@ export const RouteGuard = ({ children, allowedRoles }) => {
     useEffect(() => {
         if (!isLoading) {
             if (!user) {
-                router.replace("/signin");
+                router.replace("/");
                 return;
             }
             if (allowedRoles && !allowedRoles.includes(user.role)) {

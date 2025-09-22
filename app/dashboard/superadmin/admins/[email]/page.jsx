@@ -18,9 +18,18 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
-    BarChart3
+    BarChart3,
+    Trash2
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 const AdminDetailsPage = () => {
     const params = useParams();
@@ -29,6 +38,8 @@ const AdminDetailsPage = () => {
     const [admin, setAdmin] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const adminEmail = decodeURIComponent(params.email);
 
@@ -53,6 +64,49 @@ const AdminDetailsPage = () => {
         }
     }, [status, adminEmail]);
 
+    const handleDeleteUser = async () => {
+        setDeleting(true);
+        setError('');
+        try {
+            console.log('Starting delete process for email:', adminEmail);
+            console.log('Encoded email:', encodeURIComponent(adminEmail));
+
+            const res = await fetch(`/api/superadmin/admins/${encodeURIComponent(adminEmail)}`, {
+                method: 'DELETE',
+            });
+
+            console.log('Response status:', res.status);
+            console.log('Response ok:', res.ok);
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                console.error('Delete failed with error:', errorData);
+                throw new Error(errorData.error || 'Failed to delete user');
+            }
+
+            const result = await res.json();
+            console.log('User deleted successfully:', result);
+            console.log('Deletion result:', result.deletedData);
+
+            // Close dialog and redirect immediately on success
+            setShowDeleteDialog(false);
+            setDeleting(false);
+
+            // Redirect to admins list after successful deletion
+            console.log('Redirecting to admin list...');
+            console.log('Current URL:', window.location.href);
+            console.log('Target URL: /dashboard/superadmin/admins');
+
+            // Use window.location for immediate redirect
+            window.location.href = '/dashboard/superadmin/admins';
+
+        } catch (err) {
+            console.error('Delete error:', err);
+            setError(err.message || 'Failed to delete user');
+            setDeleting(false);
+        }
+    };
+
     if (status === 'loading') return <div className="p-8 text-center text-gray-500">Loading...</div>;
     if (loading) return <div className="p-8 text-center text-gray-500">Loading admin details...</div>;
     if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
@@ -76,9 +130,19 @@ const AdminDetailsPage = () => {
                         <h1 className="text-2xl font-semibold text-gray-800">Admin Details</h1>
                     </div>
                 </div>
-                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    Active
-                </Badge>
+                <div className="flex items-center gap-3">
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        Active
+                    </Badge>
+                    <Button
+                        variant="destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="flex items-center gap-2"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Delete User
+                    </Button>
+                </div>
             </div>
 
             {/* Admin Info Card */}
@@ -280,6 +344,66 @@ const AdminDetailsPage = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="h-5 w-5" />
+                            Delete User
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                            Are you sure you want to permanently delete this user? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 className="font-medium text-red-800 mb-2">This will permanently delete:</h4>
+                        <ul className="text-sm text-red-700 space-y-1">
+                            <li>• User account: {admin?.email}</li>
+                            <li>• All pools: {admin?.totalPools} pools</li>
+                            <li>• All bookings: {admin?.totalBookings} bookings</li>
+                            <li>• All tennis courts (if any)</li>
+                            <li>• All pickleball courts (if any)</li>
+                        </ul>
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p className="text-sm text-red-600">{error}</p>
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteUser}
+                            disabled={deleting}
+                            className="flex items-center gap-2"
+                        >
+                            {deleting ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    Deleting...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete Permanently
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

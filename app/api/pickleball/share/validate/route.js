@@ -8,7 +8,6 @@ export async function POST(request) {
   try {
     const { courtId, token } = await request.json();
 
-    console.log("Validating pickleball link:", { courtId, token });
 
     if (!courtId || !token) {
       return NextResponse.json(
@@ -36,7 +35,6 @@ export async function POST(request) {
 
     // First, let's check if the pickleball court exists
     const courtExists = await Pickleball.findById(objectId);
-    console.log("Pickleball court exists:", !!courtExists);
 
     if (!courtExists) {
       return NextResponse.json(
@@ -48,7 +46,6 @@ export async function POST(request) {
     }
 
     // Check the court's link status
-    console.log("Pickleball court link status:", {
       isLinkActive: courtExists.isLinkActive,
       linkToken: courtExists.linkToken,
       linkExpiry: courtExists.linkExpiry,
@@ -60,7 +57,6 @@ export async function POST(request) {
       isLinkActive: true,
     });
 
-    console.log("Found pickleball court with token:", !!pickleball);
 
     if (!pickleball) {
       return NextResponse.json(

@@ -207,27 +207,27 @@ const PickleballForm = ({ pickleball = null }) => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Target className="h-6 w-6" />
+                <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                        <Target className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
                         {pickleball ? 'Edit Pickleball Court' : 'Add New Pickleball Court'}
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <CardContent className="p-4 md:p-6">
+                    <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
                         {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-3 md:px-4 py-3 rounded text-sm">
                                 {error}
                             </div>
                         )}
 
                         {/* Owner Information */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Owner Information</h3>
-                            <p className="text-sm text-gray-600 mb-4">Owner name and email are automatically filled from your account information and cannot be changed.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
+                            <h3 className="text-base md:text-lg font-medium text-gray-900 mb-3 md:mb-4">Owner Information</h3>
+                            <p className="text-sm text-gray-600 mb-3 md:mb-4">Owner name and email are automatically filled from your account information and cannot be changed.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="ownerName">Owner Name *</Label>
                                     <Input
@@ -269,7 +269,7 @@ const PickleballForm = ({ pickleball = null }) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="name">Court Name *</Label>
                                 <Input
@@ -305,10 +305,11 @@ const PickleballForm = ({ pickleball = null }) => {
                                 placeholder="Describe the pickleball court"
                                 rows={3}
                                 required
+                                className="resize-y"
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="surface">Surface Type *</Label>
                                 <Select value={formData.surface} onValueChange={(value) => handleSelectChange('surface', value)}>
@@ -367,22 +368,23 @@ const PickleballForm = ({ pickleball = null }) => {
                             </Select>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3 md:space-y-4">
                             <Label>Amenities</Label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col space-y-2 sm:flex-row sm:gap-2 sm:space-y-0">
                                 <Input
                                     value={newAmenity}
                                     onChange={(e) => setNewAmenity(e.target.value)}
                                     placeholder="Add amenity"
                                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())}
+                                    className="flex-1"
                                 />
-                                <Button type="button" onClick={addAmenity} variant="outline">
+                                <Button type="button" onClick={addAmenity} variant="outline" className="w-full sm:w-auto">
                                     Add
                                 </Button>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                                 {formData.amenities.map((amenity, index) => (
-                                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                                    <Badge key={index} variant="secondary" className="flex items-center gap-1 text-xs">
                                         {amenity}
                                         <X
                                             className="h-3 w-3 cursor-pointer"
@@ -393,8 +395,8 @@ const PickleballForm = ({ pickleball = null }) => {
                             </div>
                         </div>
 
-                        <div className="border-t pt-6">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="border-t pt-4 md:pt-6">
+                            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 mb-4">
                                 <Label className="text-sm font-medium text-gray-700">
                                     Pickleball Court Images (Drag & drop or click to upload)
                                 </Label>
@@ -404,16 +406,16 @@ const PickleballForm = ({ pickleball = null }) => {
                                         variant="outline"
                                         size="sm"
                                         onClick={handleClearAllImages}
-                                        className="text-red-600 hover:text-red-700"
+                                        className="text-red-600 hover:text-red-700 w-fit"
                                     >
                                         Clear All
                                     </Button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="flex gap-4">
+                            <div className="flex flex-col space-y-4 lg:flex-row lg:items-start lg:gap-4 lg:space-y-0">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
                                     {[...Array(5)].map((_, index) => (
-                                        <Card key={index} className="w-32 h-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
+                                        <Card key={index} className="w-full aspect-square max-w-32 border-dashed border-2 flex flex-col items-center justify-center relative group cursor-pointer transition-shadow hover:shadow-lg" onClick={() => fileInputRefs[index].current && fileInputRefs[index].current.click()}>
                                             <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
                                                 {formData.images[index] ? (
                                                     <div className="relative w-full h-full">
@@ -470,18 +472,21 @@ const PickleballForm = ({ pickleball = null }) => {
                                         </Card>
                                     ))}
                                 </div>
+                                <div className="flex-shrink-0">
+                                    <span className="text-sm text-gray-500 block lg:inline">Upload up to 5 images (max 2MB each)</span>
+                                </div>
                             </div>
-                            <span className="text-sm text-gray-500">Upload up to 5 images (max 2MB each)</span>
                         </div>
 
-                        <div className="flex gap-4">
-                            <Button type="submit" disabled={loading} className="flex-1">
+                        <div className="flex flex-col space-y-3 sm:flex-row sm:gap-4 sm:space-y-0">
+                            <Button type="submit" disabled={loading} className="flex-1 order-2 sm:order-1">
                                 {loading ? 'Saving...' : (pickleball ? 'Update Court' : 'Create Court')}
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => router.push('/dashboard/admin/pickleball')}
+                                className="order-1 sm:order-2 sm:w-auto"
                             >
                                 Cancel
                             </Button>

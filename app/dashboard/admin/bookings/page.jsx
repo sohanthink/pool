@@ -100,19 +100,19 @@ const BookingsPage = () => {
     if (error) return <div className="p-8 text-center text-red-600">{error}</div>
 
     return (
-        <div className="pt-6 space-y-6">
+        <div className="pt-4 sm:pt-6 space-y-4 sm:space-y-6 px-4 sm:px-0">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-blue-600" />
-                    <h1 className="text-2xl font-semibold text-gray-800">Bookings Management</h1>
+                    <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Bookings Management</h1>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                     <div className="text-sm text-gray-600">
                         Total Bookings: {filteredBookings.length}
                     </div>
                     <Link href="/dashboard/admin/bookings/create">
-                        <Button className="bg-blue-600 hover:bg-blue-700">
+                        <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
                             <Calendar className="h-4 w-4 mr-2" />
                             Create Booking
                         </Button>
@@ -122,10 +122,10 @@ const BookingsPage = () => {
 
             {/* Filters */}
             <Card>
-                <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <CardContent className="p-4 sm:p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                         {/* Search */}
-                        <div className="relative">
+                        <div className="relative sm:col-span-2 lg:col-span-1">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input
                                 placeholder="Search bookings..."
@@ -176,6 +176,7 @@ const BookingsPage = () => {
                         {/* Clear Filters */}
                         <Button
                             variant="outline"
+                            className="sm:col-span-2 lg:col-span-1"
                             onClick={() => {
                                 setSearchTerm("")
                                 setStatusFilter("all")
@@ -191,31 +192,31 @@ const BookingsPage = () => {
 
             {/* Booking Summary */}
             <Card>
-                <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">
+                <CardContent className="p-4 sm:p-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-blue-600">
                                 {bookings.filter(b => b.poolId).length}
                             </div>
-                            <div className="text-sm text-gray-600">Pool Bookings</div>
+                            <div className="text-xs sm:text-sm text-gray-600">Pool Bookings</div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">
+                        <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-green-600">
                                 {bookings.filter(b => b.tennisCourtId).length}
                             </div>
-                            <div className="text-sm text-gray-600">Tennis Court Bookings</div>
+                            <div className="text-xs sm:text-sm text-gray-600">Tennis Court Bookings</div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-orange-600">
+                        <div className="text-center p-3 sm:p-4 bg-orange-50 rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-orange-600">
                                 {bookings.filter(b => b.pickleballCourtId).length}
                             </div>
-                            <div className="text-sm text-gray-600">Pickleball Court Bookings</div>
+                            <div className="text-xs sm:text-sm text-gray-600">Pickleball Court Bookings</div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-gray-600">
+                        <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg col-span-2 lg:col-span-1">
+                            <div className="text-xl sm:text-2xl font-bold text-gray-600">
                                 {bookings.length}
                             </div>
-                            <div className="text-sm text-gray-600">Total Bookings</div>
+                            <div className="text-xs sm:text-sm text-gray-600">Total Bookings</div>
                         </div>
                     </div>
                 </CardContent>
@@ -225,26 +226,26 @@ const BookingsPage = () => {
             <div className="space-y-4">
                 {filteredBookings.map((booking) => (
                     <Card key={booking._id || booking.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <CardContent className="p-4 sm:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                                 {/* Booking Info */}
                                 <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-semibold text-lg text-gray-800">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <h3 className="font-semibold text-base sm:text-lg text-gray-800">
                                             Booking #{booking._id || booking.id}
                                         </h3>
-                                        {getStatusBadge(booking.status)}
+                                        <div className="self-start sm:self-auto">{getStatusBadge(booking.status)}</div>
                                     </div>
                                     <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Calendar className="h-4 w-4" />
-                                            <span>{booking.date?.slice(0, 10) || booking.date} • {booking.time}</span>
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                            <span className="break-words">{booking.date?.slice(0, 10) || booking.date} • {booking.time}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Clock className="h-4 w-4" />
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                                             <span>{booking.duration} hours</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm">
+                                        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                                             {booking.fromShareLink && (
                                                 <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">
                                                     Share Link
@@ -262,41 +263,45 @@ const BookingsPage = () => {
 
                                 {/* Venue Info */}
                                 <div className="space-y-3">
-                                    <h4 className="font-medium text-gray-800">
+                                    <h4 className="font-medium text-sm sm:text-base text-gray-800">
                                         {booking.poolId ? "Pool Details" : booking.tennisCourtId ? "Tennis Court Details" : "Pickleball Court Details"}
                                     </h4>
                                     <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
                                             {booking.poolId ? (
-                                                <MapPin className="h-4 w-4" />
+                                                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
                                             ) : booking.tennisCourtId ? (
-                                                <Target className="h-4 w-4" />
+                                                <Target className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
                                             ) : (
-                                                <Target className="h-4 w-4" />
+                                                <Target className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
                                             )}
-                                            <span>
-                                                {booking.poolId?.name || booking.poolName ||
-                                                    booking.tennisCourtId?.name || booking.tennisCourtName ||
-                                                    booking.pickleballCourtId?.name || booking.pickleballCourtName}
-                                            </span>
-                                            {booking.poolId && (
-                                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">
-                                                    Pool
-                                                </Badge>
-                                            )}
-                                            {booking.tennisCourtId && (
-                                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
-                                                    Tennis Court
-                                                </Badge>
-                                            )}
-                                            {booking.pickleballCourtId && (
-                                                <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-xs">
-                                                    Pickleball Court
-                                                </Badge>
-                                            )}
+                                            <div className="flex flex-col gap-1">
+                                                <span className="break-words">
+                                                    {booking.poolId?.name || booking.poolName ||
+                                                        booking.tennisCourtId?.name || booking.tennisCourtName ||
+                                                        booking.pickleballCourtId?.name || booking.pickleballCourtName}
+                                                </span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {booking.poolId && (
+                                                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">
+                                                            Pool
+                                                        </Badge>
+                                                    )}
+                                                    {booking.tennisCourtId && (
+                                                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
+                                                            Tennis Court
+                                                        </Badge>
+                                                    )}
+                                                    {booking.pickleballCourtId && (
+                                                        <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-xs">
+                                                            Pickleball Court
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <User className="h-4 w-4" />
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                            <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                                             <span>{booking.guests} guests</span>
                                         </div>
                                     </div>
@@ -304,19 +309,19 @@ const BookingsPage = () => {
 
                                 {/* Customer Info */}
                                 <div className="space-y-3">
-                                    <h4 className="font-medium text-gray-800">Customer Details</h4>
+                                    <h4 className="font-medium text-sm sm:text-base text-gray-800">Customer Details</h4>
                                     <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <User className="h-4 w-4" />
-                                            <span>{booking.customerName}</span>
+                                        <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                                            <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
+                                            <span className="break-words">{booking.customerName}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Mail className="h-4 w-4" />
-                                            <span>{booking.customerEmail}</span>
+                                        <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
+                                            <span className="break-all">{booking.customerEmail}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Phone className="h-4 w-4" />
-                                            <span>{booking.customerPhone}</span>
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                            <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                            <span className="break-words">{booking.customerPhone}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -326,7 +331,7 @@ const BookingsPage = () => {
                             {/* Notes */}
                             {booking.notes && (
                                 <div className="mt-4 pt-4 border-t">
-                                    <p className="text-sm text-gray-600">
+                                    <p className="text-xs sm:text-sm text-gray-600">
                                         <span className="font-medium">Notes:</span> {booking.notes}
                                     </p>
                                 </div>
@@ -337,10 +342,10 @@ const BookingsPage = () => {
 
                 {filteredBookings.length === 0 && (
                     <Card>
-                        <CardContent className="p-12 text-center">
-                            <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-600 mb-2">No bookings found</h3>
-                            <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+                        <CardContent className="p-8 sm:p-12 text-center">
+                            <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-base sm:text-lg font-medium text-gray-600 mb-2">No bookings found</h3>
+                            <p className="text-sm sm:text-base text-gray-500">Try adjusting your search or filter criteria.</p>
                         </CardContent>
                     </Card>
                 )}

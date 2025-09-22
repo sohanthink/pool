@@ -92,14 +92,6 @@ const bookingSchema = new mongoose.Schema(
 
 // Custom validation to ensure either poolId, tennisCourtId, or pickleballCourtId is provided
 bookingSchema.pre("save", function (next) {
-  console.log(
-    "Pre-save validation - poolId:",
-    this.poolId,
-    "tennisCourtId:",
-    this.tennisCourtId,
-    "pickleballCourtId:",
-    this.pickleballCourtId
-  );
   if (!this.poolId && !this.tennisCourtId && !this.pickleballCourtId) {
     return next(
       new Error(

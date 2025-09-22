@@ -8,7 +8,6 @@ export async function POST(request) {
   try {
     const { poolId, token } = await request.json();
 
-    console.log("Validating link:", { poolId, token });
 
     if (!poolId || !token) {
       return NextResponse.json(
@@ -36,7 +35,6 @@ export async function POST(request) {
 
     // First, let's check if the pool exists
     const poolExists = await Pool.findById(objectId);
-    console.log("Pool exists:", !!poolExists);
 
     if (!poolExists) {
       return NextResponse.json(
@@ -48,7 +46,6 @@ export async function POST(request) {
     }
 
     // Check the pool's link status
-    console.log("Pool link status:", {
       isLinkActive: poolExists.isLinkActive,
       linkToken: poolExists.linkToken,
       linkExpiry: poolExists.linkExpiry,
@@ -60,7 +57,6 @@ export async function POST(request) {
       isLinkActive: true,
     });
 
-    console.log("Found pool with token:", !!pool);
 
     if (!pool) {
       return NextResponse.json(

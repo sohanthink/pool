@@ -35,10 +35,8 @@ export async function DELETE(request, { params }) {
               await fs.access(imagePath);
               await fs.unlink(imagePath);
               deletedImages++;
-              console.log(`Deleted image: ${imagePath}`);
             } catch (fileErr) {
               if (fileErr.code === "ENOENT") {
-                console.log(
                   `Image file not found (already deleted?): ${imagePath}`
                 );
               } else {
@@ -55,7 +53,6 @@ export async function DELETE(request, { params }) {
     // Delete the pool from database
     await Pool.findByIdAndDelete(id);
 
-    console.log(
       `Pool ${id} deleted successfully. Deleted ${deletedImages} images.`
     );
     return new Response(

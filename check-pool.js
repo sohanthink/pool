@@ -8,13 +8,6 @@ async function checkPool() {
     );
     const pool = await Pool.findOne({ name: "DD Pool" });
     if (pool) {
-      console.log("Pool found:", {
-        name: pool.name,
-        images: pool.images,
-        imagesLength: pool.images ? pool.images.length : 0,
-      });
-    } else {
-      console.log("Pool not found");
     }
     process.exit(0);
   } catch (error) {

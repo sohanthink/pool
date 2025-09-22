@@ -440,7 +440,6 @@ export async function POST(request) {
         sendBookingNotificationToAdmin(adminEmailData),
       ])
         .then(([userResult, adminResult]) => {
-          console.log("Email results:", { userResult, adminResult });
         })
         .catch((error) => {
           console.error("Error sending emails:", error);
@@ -455,7 +454,6 @@ export async function POST(request) {
     console.error("Error creating booking:", error);
 
     if (error.name === "ValidationError") {
-      console.log("Validation error details:", error.errors);
       const errors = Object.values(error.errors).map((err) => err.message);
       return NextResponse.json(
         { error: "Validation failed", details: errors },

@@ -193,37 +193,38 @@ const PickleballDetails = ({ params }) => {
     };
 
     return (
-        <div className="pt-6 space-y-6">
+        <div className="pt-4 md:pt-6 space-y-4 md:space-y-6 px-4 md:px-0">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                <div className="flex flex-col space-y-3 md:flex-row md:items-center md:gap-4 md:space-y-0">
                     <Link href="/dashboard/admin/pickleball">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" className="w-fit">
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back to Pickleball Courts
                         </Button>
                     </Link>
-                    <div className="flex items-center gap-2">
-                        <Target className="h-5 w-5 text-orange-600" />
-                        <h1 className="text-2xl font-semibold text-gray-800">{pickleball.name}</h1>
-                        <Badge variant={pickleball.status === 'Active' ? 'default' : 'secondary'}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Target className="h-5 w-5 text-orange-600 flex-shrink-0" />
+                        <h1 className="text-xl md:text-2xl font-semibold text-gray-800 break-words">{pickleball.name}</h1>
+                        <Badge variant={pickleball.status === 'Active' ? 'default' : 'secondary'} className="flex-shrink-0">
                             {pickleball.status}
                         </Badge>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="default" onClick={handleGenerateBookingLink} className="bg-green-600 hover:bg-green-700">
+                <div className="flex flex-col space-y-2 md:flex-row md:gap-2 md:space-y-0">
+                    <Button variant="default" onClick={handleGenerateBookingLink} className="bg-green-600 hover:bg-green-700 text-sm md:text-base">
                         <LinkIcon className="h-4 w-4 mr-2" />
-                        Generate Booking Link
+                        <span className="hidden sm:inline">Generate Booking Link</span>
+                        <span className="sm:hidden">Generate Link</span>
                     </Button>
 
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild className="text-sm md:text-base">
                         <Link href={`/dashboard/admin/pickleball/${courtId}/edit`}>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
                         </Link>
                     </Button>
-                    <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                    <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="text-sm md:text-base">
                         <Trash2 className="h-4 w-4 mr-2" />
                         {deleting ? 'Deleting...' : 'Delete'}
                     </Button>
@@ -232,15 +233,15 @@ const PickleballDetails = ({ params }) => {
 
             {isBookingLinkActive && bookingLink && (
                 <Card className="border-blue-200 bg-blue-50">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-blue-800">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-blue-800 text-lg">
                             <LinkIcon className="h-5 w-5" />
                             Active Booking Link
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-green-700 border-green-300">
+                        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-2 sm:space-y-0">
+                            <Badge variant="outline" className="text-green-700 border-green-300 w-fit">
                                 Active
                             </Badge>
                             {bookingLinkExpiry && (
@@ -249,45 +250,47 @@ const PickleballDetails = ({ params }) => {
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-2 sm:space-y-0">
                             <input
                                 type="text"
                                 value={bookingLink}
                                 readOnly
-                                className="flex-1 px-3 py-2 border border-blue-300 rounded-md bg-white text-sm"
+                                className="flex-1 px-3 py-2 border border-blue-300 rounded-md bg-white text-sm min-w-0"
                             />
-                            <Button size="sm" onClick={() => navigator.clipboard.writeText(bookingLink)}>
-                                Copy Link
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={handleDeactivateLink}>
-                                Deactivate
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button size="sm" onClick={() => navigator.clipboard.writeText(bookingLink)} className="flex-1 sm:flex-none">
+                                    Copy Link
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={handleDeactivateLink} className="flex-1 sm:flex-none">
+                                    Deactivate
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Court Details */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-4 md:space-y-6">
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-lg">
                                 <Target className="h-5 w-5" />
                                 Court Information
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Court Name</p>
-                                    <p className="text-gray-900">{pickleball.name}</p>
+                                    <p className="text-gray-900 break-words">{pickleball.name}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Location</p>
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-gray-400" />
-                                        <p className="text-gray-900">{pickleball.location}</p>
+                                    <div className="flex items-start gap-2">
+                                        <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                        <p className="text-gray-900 break-words min-w-0">{pickleball.location}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
@@ -301,13 +304,13 @@ const PickleballDetails = ({ params }) => {
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Price per Hour</p>
                                     <div className="flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4 text-gray-400" />
+                                        <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />
                                         <p className="text-gray-900">${pickleball.price}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Status</p>
-                                    <Badge variant={pickleball.status === 'Active' ? 'default' : 'secondary'}>
+                                    <Badge variant={pickleball.status === 'Active' ? 'default' : 'secondary'} className="w-fit">
                                         {pickleball.status}
                                     </Badge>
                                 </div>
@@ -315,15 +318,15 @@ const PickleballDetails = ({ params }) => {
 
                             <div className="space-y-2">
                                 <p className="text-sm font-medium text-gray-500">Description</p>
-                                <p className="text-gray-900">{pickleball.description}</p>
+                                <p className="text-gray-900 text-sm leading-relaxed">{pickleball.description}</p>
                             </div>
 
                             {pickleball.amenities && pickleball.amenities.length > 0 && (
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Amenities</p>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap gap-1.5">
                                         {pickleball.amenities.map((amenity, index) => (
-                                            <Badge key={index} variant="secondary">
+                                            <Badge key={index} variant="secondary" className="text-xs">
                                                 {amenity}
                                             </Badge>
                                         ))}
@@ -336,14 +339,14 @@ const PickleballDetails = ({ params }) => {
                     {/* Images */}
                     {pickleball.images && pickleball.images.length > 0 && (
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-lg">
                                     <ImageIcon className="h-5 w-5" />
                                     Court Images
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                                     {pickleball.images.map((image, index) => (
                                         <div key={index} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                                             <img
@@ -360,8 +363,8 @@ const PickleballDetails = ({ params }) => {
 
                     {/* Recent Bookings */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-lg">
                                 <Calendar className="h-5 w-5" />
                                 Recent Bookings
                             </CardTitle>
@@ -370,14 +373,14 @@ const PickleballDetails = ({ params }) => {
                             {bookings.length > 0 ? (
                                 <div className="space-y-3">
                                     {bookings.slice(0, 5).map((booking) => (
-                                        <div key={booking._id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div className="space-y-1">
-                                                <p className="font-medium">{booking.customerName}</p>
+                                        <div key={booking._id} className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 p-3 border rounded-lg">
+                                            <div className="space-y-1 min-w-0">
+                                                <p className="font-medium truncate">{booking.customerName}</p>
                                                 <p className="text-sm text-gray-600">
                                                     {new Date(booking.date).toLocaleDateString()} at {booking.time}
                                                 </p>
                                             </div>
-                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : 'destructive'}>
+                                            <Badge variant={booking.status === 'Confirmed' ? 'default' : 'destructive'} className="w-fit">
                                                 {booking.status}
                                             </Badge>
                                         </div>
@@ -391,28 +394,28 @@ const PickleballDetails = ({ params }) => {
                 </div>
 
                 {/* Sidebar */}
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                     {/* Owner Information */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-lg">
                                 <Users className="h-5 w-5" />
                                 Owner Information
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{pickleball.owner.name}</span>
+                            <div className="flex items-start gap-2">
+                                <Users className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm break-words min-w-0">{pickleball.owner.name}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{pickleball.owner.email}</span>
+                            <div className="flex items-start gap-2">
+                                <Mail className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm break-all min-w-0">{pickleball.owner.email}</span>
                             </div>
                             {pickleball.owner.phone && (
-                                <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 text-gray-400" />
-                                    <span className="text-sm">{pickleball.owner.phone}</span>
+                                <div className="flex items-start gap-2">
+                                    <Phone className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                    <span className="text-sm break-all">{pickleball.owner.phone}</span>
                                 </div>
                             )}
                         </CardContent>
@@ -420,24 +423,24 @@ const PickleballDetails = ({ params }) => {
 
                     {/* Statistics */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-lg">
                                 <Star className="h-5 w-5" />
                                 Statistics
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span className="text-sm text-gray-600">Total Bookings</span>
                                 <span className="font-medium">{pickleball.totalBookings || 0}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span className="text-sm text-gray-600">Rating</span>
                                 <span className="font-medium">{pickleball.rating || 0}/5</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span className="text-sm text-gray-600">Created</span>
-                                <span className="font-medium">{new Date(pickleball.createdAt).toLocaleDateString()}</span>
+                                <span className="font-medium text-sm">{new Date(pickleball.createdAt).toLocaleDateString()}</span>
                             </div>
                         </CardContent>
                     </Card>

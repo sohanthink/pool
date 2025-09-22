@@ -9,7 +9,6 @@ export async function POST(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    console.log("Generating share link for pickleball court:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -19,7 +18,6 @@ export async function POST(request, context) {
     }
 
     const { expiryHours = 24 } = await request.json();
-    console.log("Expiry hours:", expiryHours);
 
     await dbConnect();
 
@@ -31,16 +29,13 @@ export async function POST(request, context) {
       );
     }
 
-    console.log("Found pickleball court:", pickleball.name);
 
     // Generate a unique token for the link
     const linkToken = crypto.randomBytes(32).toString("hex");
-    console.log("Generated token:", linkToken);
 
     // Calculate expiry date
     const linkExpiry = new Date();
     linkExpiry.setHours(linkExpiry.getHours() + parseInt(expiryHours));
-    console.log("Expiry date:", linkExpiry);
 
     // Update pickleball court with link information using findOneAndUpdate
     const updatedPickleball = await Pickleball.findOneAndUpdate(
@@ -55,11 +50,9 @@ export async function POST(request, context) {
       { new: true, runValidators: true, upsert: false }
     );
 
-    console.log(
       "Pickleball court updated successfully:",
       updatedPickleball.name
     );
-    console.log("Updated pickleball court link status:", {
       isLinkActive: updatedPickleball.isLinkActive,
       linkToken: updatedPickleball.linkToken,
       linkExpiry: updatedPickleball.linkExpiry,
@@ -69,7 +62,6 @@ export async function POST(request, context) {
     const shareableUrl = `${
       process.env.NEXTAUTH_URL || "http://localhost:3000"
     }/pickleball/${pickleball._id}/share/${linkToken}`;
-    console.log("Shareable URL:", shareableUrl);
 
     return NextResponse.json({
       success: true,

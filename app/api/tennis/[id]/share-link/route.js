@@ -9,7 +9,6 @@ export async function POST(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    console.log("Generating share link for tennis court:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -19,7 +18,6 @@ export async function POST(request, context) {
     }
 
     const { expiryHours = 24 } = await request.json();
-    console.log("Expiry hours:", expiryHours);
 
     await dbConnect();
 
@@ -31,16 +29,13 @@ export async function POST(request, context) {
       );
     }
 
-    console.log("Found tennis court:", court.name);
 
     // Generate a unique token for the link
     const linkToken = crypto.randomBytes(32).toString("hex");
-    console.log("Generated token:", linkToken);
 
     // Calculate expiry date
     const linkExpiry = new Date();
     linkExpiry.setHours(linkExpiry.getHours() + parseInt(expiryHours));
-    console.log("Expiry date:", linkExpiry);
 
     // Update court with link information using findOneAndUpdate
     const updatedCourt = await Tennis.findOneAndUpdate(
@@ -55,8 +50,6 @@ export async function POST(request, context) {
       { new: true, runValidators: true, upsert: false }
     );
 
-    console.log("Tennis court updated successfully:", updatedCourt.name);
-    console.log("Updated court link status:", {
       isLinkActive: updatedCourt.isLinkActive,
       linkToken: updatedCourt.linkToken,
       linkExpiry: updatedCourt.linkExpiry,
@@ -66,7 +59,6 @@ export async function POST(request, context) {
     const shareableUrl = `${
       process.env.NEXTAUTH_URL || "http://localhost:3000"
     }/tennis/${court._id}/share/${linkToken}`;
-    console.log("Shareable URL:", shareableUrl);
 
     return NextResponse.json({
       success: true,

@@ -29,7 +29,6 @@ export async function POST(request) {
 
     // In production, send email here
     // For now, we'll just return the token (remove in production)
-    console.log("Password reset token:", resetToken);
 
     return NextResponse.json({
       message:

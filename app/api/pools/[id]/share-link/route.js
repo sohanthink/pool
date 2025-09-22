@@ -9,8 +9,6 @@ export async function POST(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    console.log("Generating share link for pool:", id);
-
     if (!id) {
       return NextResponse.json(
         { error: "Pool ID is required" },
@@ -19,7 +17,6 @@ export async function POST(request, context) {
     }
 
     const { expiryHours = 24 } = await request.json();
-    console.log("Expiry hours:", expiryHours);
 
     await dbConnect();
 
@@ -28,16 +25,12 @@ export async function POST(request, context) {
       return NextResponse.json({ error: "Pool not found" }, { status: 404 });
     }
 
-    console.log("Found pool:", pool.name);
-
     // Generate a unique token for the link
     const linkToken = crypto.randomBytes(32).toString("hex");
-    console.log("Generated token:", linkToken);
 
     // Calculate expiry date
     const linkExpiry = new Date();
     linkExpiry.setHours(linkExpiry.getHours() + parseInt(expiryHours));
-    console.log("Expiry date:", linkExpiry);
 
     // Update pool with link information using findOneAndUpdate
     const updatedPool = await Pool.findOneAndUpdate(
@@ -52,18 +45,10 @@ export async function POST(request, context) {
       { new: true, runValidators: true, upsert: false }
     );
 
-    console.log("Pool updated successfully:", updatedPool.name);
-    console.log("Updated pool link status:", {
-      isLinkActive: updatedPool.isLinkActive,
-      linkToken: updatedPool.linkToken,
-      linkExpiry: updatedPool.linkExpiry,
-    });
-
     // Generate the shareable URL
     const shareableUrl = `${
       process.env.NEXTAUTH_URL || "http://localhost:3000"
     }/pool/${pool._id}/share/${linkToken}`;
-    console.log("Shareable URL:", shareableUrl);
 
     return NextResponse.json({
       success: true,

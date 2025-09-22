@@ -95,24 +95,11 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="pt-6 space-y-6">
-            {/* Welcome Header */}
-            {/* <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Welcome back, {user?.name || 'Admin'}!</h1>
-                    <p className="text-gray-600 mt-2">Email: {user?.email}</p>
-                </div>
-                <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                >
-                    Logout
-                </button>
-            </div> */}
 
             {/* Stats Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <Link href="/dashboard/admin/pool">
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                    <Card className="hover:shadow-lg cursor-pointer hover:scale-105 transition-transform">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -127,7 +114,7 @@ export default function AdminDashboardPage() {
                     </Card>
                 </Link>
                 <Link href="/dashboard/admin/tennis">
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105 transition-transform">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:scale-105">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -196,7 +183,7 @@ export default function AdminDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <Link href="/dashboard/admin/pool/create">
                                 <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full">
                                     <Building2 className="h-6 w-6 text-blue-600 mb-2" />

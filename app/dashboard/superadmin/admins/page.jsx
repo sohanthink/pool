@@ -266,10 +266,6 @@ const AdminsPage = () => {
                                                 View Details
                                             </Button>
                                         </Link>
-                                        <Button variant="outline" size="sm" className="w-full">
-                                            <MoreHorizontal className="h-4 w-4 mr-2" />
-                                            More Actions
-                                        </Button>
                                     </div>
                                 </div>
                             </div>

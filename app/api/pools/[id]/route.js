@@ -37,15 +37,6 @@ export async function GET(request, context) {
 
     // Enhance pool data with booking statistics
     const poolObject = pool.toObject();
-    console.log("Pool object keys:", Object.keys(poolObject));
-    console.log("Link fields in pool:", {
-      linkToken: pool.linkToken,
-      linkExpiry: pool.linkExpiry,
-      isLinkActive: pool.isLinkActive,
-      bookingToken: pool.bookingToken,
-      bookingLinkExpiry: pool.bookingLinkExpiry,
-      isBookingLinkActive: pool.isBookingLinkActive,
-    });
 
     const enhancedPool = {
       ...poolObject,
@@ -53,7 +44,7 @@ export async function GET(request, context) {
       confirmedBookings,
       cancelledBookings,
       recentBookings,
-      // Include link fields for debugging
+      // Include link fields
       linkToken: pool.linkToken,
       linkExpiry: pool.linkExpiry,
       isLinkActive: pool.isLinkActive,
